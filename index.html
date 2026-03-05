@@ -128,10 +128,14 @@
     </div>
 
     <div id="success-msg">
-        <div style="font-size: 60px;">🚀</div>
-        <h2>Audit Synchronized</h2>
-        <p>Data sent to your Google Sheet.</p>
-        <button onclick="location.reload()" style="padding: 12px 25px; border: none; background: #eee; border-radius: 8px;">Start New Audit</button>
+        <img src="icon.png" alt="Healthy Home Logo" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1161/1161388.png'">
+        <h2>Assessment Saved</h2>
+        <p>The data has been uploaded to the Healthy Home cloud. <br>You can now safely close this assessment or start the next assessment.</p>
+        
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+            <button onclick="location.reload()" style="flex: 1; padding: 15px; border: none; background: var(--primary); color: white; border-radius: 8px; font-weight:bold; cursor: pointer;">New Assessment</button>
+            <button onclick="window.location.href='https://www.gethealthyhome.com'" style="flex: 1; padding: 15px; border: none; background: #eee; color: #333; border-radius: 8px; font-weight:bold; cursor: pointer;">Exit App</button>
+        </div>
     </div>
 
     <script>
