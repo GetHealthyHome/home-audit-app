@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Audit Pro</title>
+    <style>
+        :root { --primary: #2e7d32; --bg: #f5f5f5; }
+        body { font-family: sans-serif; margin: 0; padding-top: 80px; background: var(--bg); }
+        
+        /* The Static Top Bar */
+        .static-header {
+            position: fixed; top: 0; width: 100%; height: 70px;
+            background: white; border-bottom: 2px solid var(--primary);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 15px; box-sizing: border-box; z-index: 1000;
+        }
+
+        /* The House Progress Bar */
+        #house-progress { width: 50px; height: 50px; }
+        .house-outline { fill: #e0e0e0; transition: fill 0.5s; }
+        .house-filled { fill: var(--primary); clip-path: inset(100% 0 0 0); transition: clip-path 0.5s; }
+
+        /* Quick Jump Button */
+        .jump-btn { background: var(--primary); color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; }
+
+        .section { background: white; margin: 15px; padding: 20px; border-radius: 8px; shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <div class="static-header">
+        <div>
+            <strong id="display-name">New Audit</strong><br>
+            <small id="display-id">ID: ---</small>
+        </div>
+        <svg id="house-progress" viewBox="0 0 24 24">
+            <path class="house-outline" d="M12 3L2 12h3v8h14v-8h3L12 3z"/>
+            <path id="filler" class="house-filled" d="M12 3L2 12h3v8h14v-8h3L12 3z"/>
+        </svg>
+        <button class="jump-btn" onclick="document.getElementById('testing').scrollIntoView()">TESTS</button>
+    </div>
+
+    <div class="section" id="customer-info">
+        <h3>Customer Details</h3>
+        <input type="text" id="custName" placeholder="Customer Name" oninput="updateUI()">
+        <input type="text" id="projId" placeholder="Project ID" oninput="updateUI()">
+        <input type="text" id="address" placeholder="Property Address">
+    </div>
+
+    <div class="section" id="testing">
+        <h3>Direct Testing</h3>
+        <label>Blower Door (CFM50)</label>
+        <input type="number" id="blowerDoor" placeholder="0.0">
+        <label>CO2 Levels (ppm)</label>
+        <input type="number" id="co2" placeholder="400">
+    </div>
+
+    <div class="section">
+        <button style="width:100%; background:var(--primary); color:white; padding:15px; border:none; border-radius:8px;" onclick="submitData()">FINISH & UPLOAD</button>
+    </div>
+
+    <script>
+        function updateUI() {
+            const name = document.getElementById('custName').value;
+            const id = document.getElementById('projId').value;
+            document.getElementById('display-name').innerText = name || "New Audit";
+            document.getElementById('display-id').innerText = "ID: " + (id || "---");
+            
+            // Logic to fill the house based on input count
+            let inputs = document.querySelectorAll('input');
+            let filled = Array.from(inputs).filter(i => i.value.length > 0).length;
+            let percent = 100 - (filled / inputs.length * 100);
+            document.getElementById('filler').style.clipPath = `inset(${percent}% 0 0 0)`;
+        }
+
+        async function submitData() {
+            const url = "https://script.google.com/macros/s/AKfycbyyKqqFOouVuwrWQpWMXQQhUUtYTIj9TQO6lv7FWvu50CwcJ83rbcb6HS-iSN75_bcM/exe";
+            const data = {
+                customerName: document.getElementById('custName').value,
+                projectId: document.getElementById('projId').value,
+                address: document.getElementById('address').value,
+                blowerDoor: document.getElementById('blowerDoor').value,
+                co2: document.getElementById('co2').value
+            };
+
+            await fetch(url, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify(data)
+            });
+            alert("Audit Data Synced to Google Sheets!");
+        }
+    </script>
+</body>
+</html>
