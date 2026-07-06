@@ -26,9 +26,14 @@ in the field.
   background timer + results entry with rating bands)
 - **Sales pipeline** — Improvement Catalog → Recommendation Builder (financial
   estimates + science context) → Proposed Solution Summary (payback, ROI
-  projection, printable proposal) with proposal media selection
-- **Media review**, **Audit history**, read-only **Assessment Record** with
-  cloud sync (legacy Google Apps Script endpoint)
+  projection) → **customer-facing Proposal document** (cover, investment
+  table, per-measure explanations, site evidence gallery, signature page)
+  with print-optimized PDF layout
+- **Calendar view** on the dashboard (month grid with appointment dots)
+- **Media review & tagging** (required-tag tracking), **audit history**,
+  read-only **Assessment Record**, per-audit **JSON export**
+- **Cloud sync** to Supabase — offline-first with resumable photo upload and
+  automatic retry on reconnect
 
 ## Architecture
 
@@ -36,15 +41,34 @@ Plain HTML/CSS/JS, no build step (classic scripts so `file://` works):
 
 ```
 index.html          shell
-css/app.css         design system (tokens from the Figma file)
+css/app.css         design system (tokens from the Figma file) + print layout
 js/icons.js         inline SVG icon set (offline-safe)
 js/data.js          domain data: zones, protocols, improvement catalog
+js/config.js        backend configuration (Supabase URL + publishable key)
 js/store.js         state (localStorage) + photos (IndexedDB) + derived calcs
+js/backend.js       Supabase REST/Storage sync (plain fetch, no SDK)
 js/ui.js            shared render helpers
 js/screens-*.js     screen render functions
 js/app.js           hash router + delegated event handling
 ```
 
-State is offline-first: audit data persists in `localStorage`, photos are
-downscaled and stored in IndexedDB, and a "Finalize & Sync" action posts the
-audit record to the HomSci cloud endpoint when a connection is available.
+## Backend (Supabase)
+
+Data lives on the device first (`localStorage` + IndexedDB). "Finalize & Sync"
+— or Settings → *Sync now* — pushes each audit to Supabase:
+
+- `public.audits` — one row per audit (customer, status, full JSON payload)
+- `public.audit_photos` — one row per photo, with the storage path
+- `audit-photos` storage bucket — downscaled JPEG evidence, public-read so
+  proposals and other devices can render images without signed URLs
+
+Photo uploads are resumable (progress is tracked per photo), and pending
+audits retry automatically when the device comes back online. Settings also
+offers *Pull audits from the cloud* to fetch records captured on other
+devices.
+
+The schema lives in the Supabase migration `homsci_audit_sync`. The app uses
+the publishable anon key (safe to embed); RLS policies currently allow
+anonymous read/insert/update on the two audit tables because field devices
+are unauthenticated — add crew logins and tighten the policies to
+`authenticated` when accounts land.

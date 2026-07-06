@@ -146,8 +146,5 @@ window.DATA = {
       benefits: ['Ends condensation streaking', 'Noticeable acoustic dampening'] }
   ],
 
-  MARKET_AVG_PAYBACK_YEARS: 9,
-
-  /* Legacy sync endpoint (Google Apps Script) carried over from v1. */
-  DATABASE_URL: 'https://script.google.com/macros/s/AKfycbxiWsfXSJqP4ZMg0wJ7e2kCGrrawPAyHNZkUGzpKKOhKlGjP3I6WpxG1TSU77VdlgBV/exec'
+  MARKET_AVG_PAYBACK_YEARS: 9
 };

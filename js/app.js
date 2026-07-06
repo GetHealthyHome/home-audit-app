@@ -4,7 +4,10 @@
 (function () {
   var app = document.getElementById('app');
   var tabbar = document.getElementById('tabbar');
-  var uiState = { catalogFilter: 'All Measures', mediaFilter: 'all', builderPick: null, historyQuery: '' };
+  var uiState = {
+    catalogFilter: 'All Measures', mediaFilter: 'all', builderPick: null, historyQuery: '',
+    dashView: 'list', calMonth: null, calSelected: null, mediaEditing: null
+  };
   var iaqTimer = null;
 
   function route() {
@@ -40,14 +43,15 @@
         case 'catalog': html = ScreenCatalog(ev, uiState.catalogFilter); break;
         case 'builder': html = ScreenBuilder(ev, uiState.builderPick); break;
         case 'summary': html = ScreenSummary(ev); break;
-        case 'media': html = ScreenMedia(ev, uiState.mediaFilter); break;
+        case 'media': html = ScreenMedia(ev, uiState.mediaFilter, uiState.mediaEditing); break;
         case 'proposal-media': html = ScreenProposalMedia(ev); break;
+        case 'proposal-doc': html = ScreenProposalDoc(ev); break;
         case 'record': html = ScreenRecord(ev); break;
         default: html = ScreenHub(ev);
       }
     } else {
       switch (parts[0]) {
-        case 'dashboard': html = ScreenDashboard(); break;
+        case 'dashboard': html = ScreenDashboard(uiState.dashView, uiState.calMonth, uiState.calSelected); break;
         case 'new': html = ScreenNewEval(); break;
         case 'history': html = ScreenHistory(uiState.historyQuery); break;
         case 'settings': html = ScreenSettings(); break;
@@ -95,7 +99,7 @@
 
   function renderTabbar(parts) {
     var current = parts[0] === 'eval'
-      ? ((parts[2] === 'catalog' || parts[2] === 'builder' || parts[2] === 'summary' || parts[2] === 'proposal-media') ? 'proposal' : 'assess')
+      ? (['catalog', 'builder', 'summary', 'proposal-media', 'proposal-doc'].indexOf(parts[2]) >= 0 ? 'proposal' : 'assess')
       : parts[0];
     tabbar.innerHTML = DATA.TABS.map(function (t) {
       if (t.id === 'fab') {
@@ -343,21 +347,65 @@
         Store.save(); rerender();
       },
       'pmedia-clear': function () { ev.proposalMedia = []; Store.save(); rerender(); },
-      'proposal-pdf': function () {
-        location.hash = '#/eval/' + ev.id + '/record';
-        setTimeout(function () { window.print(); }, 350);
+      'print-doc': function () { window.print(); },
+      'dash-view': function () {
+        uiState.dashView = el.getAttribute('data-view');
+        if (uiState.dashView === 'cal' && !uiState.calSelected) {
+          uiState.calSelected = new Date().toISOString().slice(0, 10);
+        }
+        rerender();
+      },
+      'cal-nav': function () { uiState.calMonth = el.getAttribute('data-month'); rerender(); },
+      'cal-day': function () { uiState.calSelected = el.getAttribute('data-date'); rerender(); },
+      'media-edit': function () {
+        var id = el.getAttribute('data-photo');
+        uiState.mediaEditing = uiState.mediaEditing === id ? null : id;
+        rerender();
+      },
+      'media-edit-done': function () { uiState.mediaEditing = null; rerender(); },
+      'export-json': function () {
+        var payload = JSON.parse(JSON.stringify(ev));
+        var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'audit-' + (ev.customer.name || ev.id).toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json';
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+        UI.toast('Audit record exported.');
       },
       'finalize-eval': function () {
         ev.status = 'complete';
         Store.save();
+        if (!Backend.ready()) {
+          UI.toast('Finalized locally — no backend configured.');
+          rerender(); return;
+        }
         UI.toast('Synchronizing…');
         Store.sync(ev).then(function () {
-          UI.toast('Assessment saved to the HomSci cloud.');
+          UI.toast('Assessment + ' + ev.photos.length + ' photos saved to the HomSci cloud.');
+          Store.reindexRemote();
           rerender();
         }).catch(function () {
-          UI.toast('Offline — data is saved locally and will keep until you sync.');
+          UI.toast('Offline — saved locally; will sync when you reconnect.');
           rerender();
         });
+      },
+      'sync-now': function () {
+        if (!Backend.ready()) { UI.toast('No backend configured.'); return; }
+        UI.toast('Syncing pending audits…');
+        Backend.syncPending().then(function () {
+          UI.toast('Sync complete.');
+          rerender();
+        });
+      },
+      'pull-remote': function () {
+        if (!Backend.ready()) { UI.toast('No backend configured.'); return; }
+        UI.toast('Fetching audits from the cloud…');
+        Backend.pullAudits().then(function (added) {
+          Store.reindexRemote();
+          UI.toast(added ? added + ' audit' + (added > 1 ? 's' : '') + ' pulled from the cloud.' : 'Already up to date.');
+          rerender();
+        }).catch(function (e) { UI.toast('Could not reach the cloud: ' + e.message); });
       },
       'clear-demo': function () { Store.clearDemo(); UI.toast('Demo appointments removed.'); rerender(); },
       'wipe': function () {
@@ -371,7 +419,13 @@
     if (actions[action]) actions[action]();
   });
 
-  window.addEventListener('hashchange', render);
-  Store.init().then(render);
-  window.rerender = render;
+  /* Auto-retry pending syncs when connectivity returns. */
+  window.addEventListener('online', function () {
+    if (!Backend.ready()) return;
+    Backend.syncPending().then(function () { rerender(); });
+  });
+
+  window.addEventListener('hashchange', function () { render(); });
+  Store.init().then(function () { render(); });
+  window.rerender = rerender;
 })();

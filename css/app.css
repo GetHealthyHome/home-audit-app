@@ -520,6 +520,80 @@ select.input {
   margin-top: -26px;
 }
 
+/* ---------- Calendar ---------- */
+.cal-card { padding: 14px; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-head b { font: 800 16px var(--font-display); }
+.cal-head .iconbtn { width: 34px; height: 34px; border: none; border-radius: 999px; background: var(--surface-2); font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-dow span { text-align: center; font: 700 10px var(--font-body); color: var(--faint); padding: 4px 0; }
+.cal-cell {
+  position: relative; aspect-ratio: 1; border: none; border-radius: 10px;
+  background: transparent; font: 600 13px var(--font-body); color: var(--ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+}
+.cal-cell.empty { pointer-events: none; }
+.cal-cell.today { background: var(--surface-3); }
+.cal-cell.selected { background: var(--green); color: #fff; }
+.cal-dots { display: flex; gap: 2px; }
+.cd { width: 5px; height: 5px; border-radius: 999px; display: inline-block; }
+.cd.ev { background: var(--blue-ink); }
+.cd.est { background: var(--magenta); }
+.cal-cell.selected .cd { background: #fff; }
+.cal-legend { display: flex; gap: 14px; margin-top: 10px; font: 600 11px var(--font-body); color: var(--muted); }
+.cal-legend span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* ---------- Media tag editor ---------- */
+.tag-editor { background: var(--surface-2); border-radius: 12px; padding: 14px; margin: 10px 0; }
+.media-tile.untagged::after {
+  content: "tag missing"; position: absolute; top: 8px; left: 8px;
+  background: var(--red-soft); color: var(--red); font: 700 9px var(--font-body);
+  text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 7px; border-radius: 999px;
+}
+.media-tile.editing { border-color: var(--magenta); }
+
+/* ---------- Proposal document (customer-facing, print-optimized) ---------- */
+.pdoc { background: #fff; }
+.pdoc .pd-page {
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 28px 24px; margin-bottom: 16px;
+}
+.pdoc .pd-brand { display: flex; align-items: center; gap: 10px; font: 800 15px var(--font-display); color: var(--green); margin-bottom: 26px; }
+.pdoc .pd-brand .logo { width: 26px; height: 26px; border-radius: 7px; background: var(--green); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }
+.pdoc .pd-kicker { font: 700 11px var(--font-body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--magenta); margin-bottom: 8px; }
+.pdoc h1 { font: 800 32px/1.1 var(--font-display); margin: 0 0 10px; }
+.pdoc h2 { font: 800 20px var(--font-display); margin: 0 0 12px; color: var(--green); }
+.pdoc .pd-meta { color: var(--muted); font-size: 13px; margin-bottom: 22px; }
+.pdoc .pd-hero { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 20px 0; }
+.pdoc .pd-hero > div { background: var(--surface-2); border-radius: 12px; padding: 14px 12px; text-align: center; }
+.pdoc .pd-hero .hv { font: 800 22px var(--font-display); color: var(--green); }
+.pdoc .pd-hero .hk { font: 600 10px var(--font-body); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-top: 4px; }
+.pdoc table.pd-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+.pdoc table.pd-table th { text-align: left; font: 700 11px var(--font-body); text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding: 8px 6px; border-bottom: 2px solid var(--green); }
+.pdoc table.pd-table td { padding: 10px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.pdoc table.pd-table td.num { text-align: right; font-weight: 700; white-space: nowrap; }
+.pdoc table.pd-table tr.total td { border-bottom: none; font: 800 15px var(--font-display); color: var(--green); }
+.pdoc .pd-measure { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.pdoc .pd-measure:last-child { border-bottom: none; }
+.pdoc .pd-measure h3 { font: 800 16px var(--font-display); margin: 0 0 6px; display: flex; justify-content: space-between; gap: 10px; }
+.pdoc .pd-measure h3 .cost { color: var(--green); white-space: nowrap; }
+.pdoc .pd-measure p { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+.pdoc .pd-measure .why { background: var(--green-pale); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; margin-top: 8px; }
+.pdoc .pd-measure .why b { color: var(--green); }
+.pdoc .pd-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.pdoc .pd-gallery figure { margin: 0; }
+.pdoc .pd-gallery img { width: 100%; height: 150px; object-fit: cover; border-radius: 8px; }
+.pdoc .pd-gallery figcaption { font-size: 10px; color: var(--faint); margin-top: 3px; }
+.pdoc .pd-fineprint { font-size: 10.5px; color: var(--faint); line-height: 1.5; margin-top: 18px; }
+.pdoc .pd-sign { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 30px; }
+.pdoc .pd-sign > div { border-top: 1.5px solid var(--ink); padding-top: 6px; font-size: 11px; color: var(--muted); }
+
+@media print {
+  .pdoc .pd-page { border: none; border-radius: 0; margin: 0; padding: 0 0 24px; page-break-after: always; }
+  .pdoc .pd-page:last-child { page-break-after: auto; }
+  @page { margin: 16mm; }
+}
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%) translateY(16px);

@@ -64,6 +64,7 @@
   }
 
   var state = load();
+  var remotePaths = {}; // photoId -> storage path (for cloud-synced photos)
 
   function save() {
     try { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
@@ -137,7 +138,10 @@
     uid: uid,
 
     init: function () {
-      return idbLoadAll().then(function (all) { photoCache = all; });
+      return idbLoadAll().then(function (all) {
+        photoCache = all;
+        Store.reindexRemote();
+      });
     },
 
     activeEval: function () {
@@ -202,7 +206,21 @@
     },
 
     /* ---------- Photos ---------- */
-    photoUrl: function (id) { return photoCache[id] || null; },
+    /* Local (IndexedDB) first; photos synced from another device resolve to
+       their public storage URL. */
+    photoUrl: function (id) {
+      if (photoCache[id]) return photoCache[id];
+      var path = remotePaths[id];
+      return path && window.Backend && Backend.ready() ? Backend.publicPhotoUrl(path) : null;
+    },
+    reindexRemote: function () {
+      remotePaths = {};
+      Object.keys(state.evaluations).forEach(function (k) {
+        (state.evaluations[k].photos || []).forEach(function (p) {
+          if (p.storagePath) remotePaths[p.id] = p.storagePath;
+        });
+      });
+    },
     addPhoto: function (ev, meta, file) {
       return downscale(file).then(function (dataUrl) {
         var p = Object.assign({ id: uid('ph'), ts: new Date().toISOString(), inspector: state.auditor.name || 'Field Auditor' }, meta);
@@ -318,15 +336,9 @@
       };
     },
 
-    /* ---------- Sync (legacy Apps Script endpoint) ---------- */
+    /* ---------- Sync (Supabase backend — see js/backend.js) ---------- */
     sync: function (ev) {
-      var payload = JSON.parse(JSON.stringify(ev));
-      payload.photos = ev.photos.map(function (p) {
-        return { id: p.id, zone: p.zone, label: p.label, ts: p.ts, inspector: p.inspector };
-      });
-      payload.photoCount = ev.photos.length;
-      return fetch(DATA.DATABASE_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) })
-        .then(function () { ev.synced = true; save(); return true; });
+      return Backend.syncAudit(ev);
     }
   };
 })();
