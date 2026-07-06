@@ -2,191 +2,31 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#f7faf8">
     <link rel="apple-touch-icon" href="./icon.png">
     <link rel="apple-touch-icon-precomposed" href="./icon.png">
-    <title>Healthy Home Audit Pro</title>
-    <style>
-        :root { --primary: #2e7d32; --bg: #f0f2f5; --white: #ffffff; }
-        body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding-top: 90px; background: var(--bg); padding-bottom: 100px; }
-        
-        /* Static Header & House Progress */
-        .static-header {
-            position: fixed; top: 0; width: 100%; height: 85px;
-            background: var(--white); border-bottom: 3px solid var(--primary);
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 0 20px; box-sizing: border-box; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        #house-progress { width: 45px; height: 45px; }
-        .house-outline { fill: #e0e0e0; }
-        .house-filled { fill: var(--primary); clip-path: inset(100% 0 0 0); transition: clip-path 0.4s ease; }
-
-        /* Accordion Styling */
-        .accordion { background: var(--white); margin: 10px 15px; border-radius: 8px; overflow: hidden; border: 1px solid #ddd; }
-        .acc-header { 
-            background: #f8f9fa; padding: 15px; font-weight: bold; cursor: pointer;
-            display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee;
-        }
-        .acc-content { padding: 20px; display: none; }
-        .acc-content.active { display: block; }
-
-        /* Input Styling */
-        label { display: block; margin-top: 15px; font-size: 0.85rem; color: #555; font-weight: 600; }
-        input, select, textarea { 
-            width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; 
-            border-radius: 6px; box-sizing: border-box; font-size: 16px; 
-        }
-        
-        .submit-area { padding: 20px; position: fixed; bottom: 0; width: 100%; box-sizing: border-box; background: var(--bg); }
-        .btn-main { width: 100%; background: var(--primary); color: white; padding: 18px; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; }
-        
-        #success-msg { 
-            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: white; padding: 40px; border-radius: 20px; text-align: center;
-            box-shadow: 0 0 100px rgba(0,0,0,0.5); z-index: 2000; width: 85%;
-        }
-    </style>
+    <title>HomSci Pro — Clinical Precision Home Audits</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
+    <div id="app" aria-live="polite"></div>
+    <nav id="tabbar" class="tabbar" aria-label="Main navigation"></nav>
+    <div id="toast" class="toast" role="status"></div>
 
-    <div class="static-header">
-        <div>
-            <strong id="display-name">New Audit</strong><br>
-            <span id="display-id" style="font-size: 0.8rem; color: #666;">ID: Pending</span>
-        </div>
-        <svg id="house-progress" viewBox="0 0 24 24">
-            <path class="house-outline" d="M12 3L2 12h3v8h14v-8h3L12 3z"/>
-            <path id="filler" class="house-filled" d="M12 3L2 12h3v8h14v-8h3L12 3z"/>
-        </svg>
-    </div>
-
-    <div class="accordion">
-        <div class="acc-header" onclick="toggleAcc(this)">1. Site & Customer Details <span>-</span></div>
-        <div class="acc-content active">
-            <label>Auditor Name</label><input type="text" id="auditorName" oninput="updateUI()">
-            <label>Customer Name</label><input type="text" id="customerName" oninput="updateUI()">
-            <label>Project ID</label><input type="text" id="projectId" oninput="updateUI()">
-            <label>Address</label><input type="text" id="address" oninput="updateUI()">
-            <label>Year Built</label><input type="number" id="yearBuilt" oninput="updateUI()">
-            <label>Square Footage</label><input type="number" id="sqFt" oninput="updateUI()">
-        </div>
-    </div>
-
-    <div class="accordion">
-        <div class="acc-header" onclick="toggleAcc(this)">2. Motivation & Systems <span>+</span></div>
-        <div class="acc-content">
-            <label>Primary Motivation</label>
-            <select id="motivation" oninput="updateUI()">
-                <option value="">Select...</option>
-                <option value="High Bills">High Bills</option>
-                <option value="Comfort">Comfort/Drafts</option>
-                <option value="Ice Dams">Ice Dams</option>
-            </select>
-            <label>Heating System Type</label>
-            <input type="text" id="heatType" placeholder="e.g. Gas Furnace" oninput="updateUI()">
-        </div>
-    </div>
-
-    <div class="accordion">
-        <div class="acc-header" id="testing-section" onclick="toggleAcc(this)">3. Core Testing <span>+</span></div>
-        <div class="acc-content">
-            <label>Blower Door Baseline (CFM50)</label><input type="number" id="blowerDoor" oninput="updateUI()">
-            <label>Blower Door Target</label><input type="number" id="targetCFM" oninput="updateUI()">
-            <label>Ambient CO (ppm)</label><input type="number" id="ambientCO" oninput="updateUI()">
-            <label>CO2 Level (ppm)</label><input type="number" id="co2" oninput="updateUI()">
-            <label>CAZ Test Result</label>
-            <select id="cazResult" oninput="updateUI()">
-                <option value="Pass">Pass</option>
-                <option value="Fail">Fail</option>
-            </select>
-        </div>
-    </div>
-
-    <div class="accordion">
-        <div class="acc-header" onclick="toggleAcc(this)">4. Envelope Observations <span>+</span></div>
-        <div class="acc-content">
-            <label>Attic Insulation Depth (inches)</label><input type="number" id="atticDepth" oninput="updateUI()">
-            <label>Infrared Scan Notes</label><textarea id="irNotes" oninput="updateUI()"></textarea>
-            <label>Basement Moisture</label><input type="text" id="moisture" placeholder="Dry, Damp, etc." oninput="updateUI()">
-        </div>
-    </div>
-
-    <div class="accordion">
-        <div class="acc-header" onclick="toggleAcc(this)">5. Safety & Recommendations <span>+</span></div>
-        <div class="acc-content">
-            <label>Red Flags / Safety Hazards</label><textarea id="redFlags" oninput="updateUI()"></textarea>
-            <label>Homeowner Education Notes</label><textarea id="education" oninput="updateUI()"></textarea>
-            <label>Priority Recommendation</label><input type="text" id="priority" oninput="updateUI()">
-            <label>Audit Status</label>
-            <select id="status" oninput="updateUI()">
-                <option value="Complete">Complete</option>
-                <option value="Follow-up">Needs Follow-up</option>
-            </select>
-        </div>
-    </div>
-
-    <div class="submit-area">
-        <button id="submitBtn" class="btn-main" onclick="submitData()">FINISH & SYNC AUDIT</button>
-    </div>
-
-    <div id="success-msg">
-        <img src="icon.png" alt="Healthy Home Logo" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1161/1161388.png'">
-        <h2>Assessment Saved</h2>
-        <p>The data has been uploaded to the Healthy Home cloud. <br>You can now safely close this assessment or start the next assessment.</p>
-        
-        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-            <button onclick="location.reload()" style="flex: 1; padding: 15px; border: none; background: var(--primary); color: white; border-radius: 8px; font-weight:bold; cursor: pointer;">New Assessment</button>
-            <button onclick="window.location.href='https://www.gethealthyhome.com'" style="flex: 1; padding: 15px; border: none; background: #eee; color: #333; border-radius: 8px; font-weight:bold; cursor: pointer;">Exit App</button>
-        </div>
-    </div>
-
-    <script>
-        const DATABASE_URL = "https://script.google.com/macros/s/AKfycbxiWsfXSJqP4ZMg0wJ7e2kCGrrawPAyHNZkUGzpKKOhKlGjP3I6WpxG1TSU77VdlgBV/exec";
-
-        function toggleAcc(header) {
-            const content = header.nextElementSibling;
-            content.classList.toggle('active');
-            header.querySelector('span').innerText = content.classList.contains('active') ? "-" : "+";
-        }
-
-        function updateUI() {
-            const name = document.getElementById('customerName').value;
-            const id = document.getElementById('projectId').value;
-            document.getElementById('display-name').innerText = name || "New Audit";
-            document.getElementById('display-id').innerText = "ID: " + (id || "Pending");
-            
-            let inputs = document.querySelectorAll('input, select, textarea');
-            let filled = Array.from(inputs).filter(i => i.value && i.value.length > 0).length;
-            let percent = 100 - (filled / inputs.length * 100);
-            document.getElementById('filler').style.clipPath = `inset(${percent}% 0 0 0)`;
-        }
-
-        async function submitData() {
-            const btn = document.getElementById('submitBtn');
-            btn.innerText = "Synchronizing...";
-            btn.disabled = true;
-
-            const data = {};
-            document.querySelectorAll('input, select, textarea').forEach(el => {
-                data[el.id] = el.value;
-            });
-
-            // Local save just in case
-            localStorage.setItem('lastAudit', JSON.stringify(data));
-
-            try {
-                await fetch(DATABASE_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify(data)
-                });
-                document.getElementById('success-msg').style.display = 'block';
-            } catch (e) {
-                alert("Connection failed. Data is saved locally on your tablet.");
-                btn.innerText = "Saved Offline";
-                btn.style.background = "#d32f2f";
-            }
-        }
-    </script>
+    <script src="js/icons.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/screens-core.js"></script>
+    <script src="js/screens-zones.js"></script>
+    <script src="js/screens-tests.js"></script>
+    <script src="js/screens-sales.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
