@@ -18,12 +18,23 @@
   function ready() { return !!(CFG.url && CFG.anonKey); }
 
   function headers(extra) {
+    /* RLS is authenticated-only: data calls carry the crew member's access
+       token. The anon key remains the apikey (project routing) only. */
+    var token = (window.Auth && Auth.accessToken()) || CFG.anonKey;
     var h = {
       'apikey': CFG.anonKey,
-      'Authorization': 'Bearer ' + CFG.anonKey
+      'Authorization': 'Bearer ' + token
     };
     for (var k in (extra || {})) h[k] = extra[k];
     return h;
+  }
+
+  function requireAuth() {
+    if (!window.Auth) return Promise.resolve(null);
+    return Auth.ensureFresh().then(function (token) {
+      if (!token) throw new Error('SIGN_IN_REQUIRED');
+      return token;
+    });
   }
 
   function rest(path, opts) {
@@ -81,6 +92,12 @@
       var payload = JSON.parse(JSON.stringify(ev));
       delete payload.syncState;
 
+      return requireAuth().then(function () {
+        return Backend._syncAuthed(ev, payload);
+      });
+    },
+
+    _syncAuthed: function (ev, payload) {
       return rest('audits', {
         method: 'POST',
         headers: { 'Prefer': 'resolution=merge-duplicates' },
@@ -126,7 +143,9 @@
     /* Pull remote audits (e.g. captured on another device) into History. */
     pullAudits: function () {
       if (!ready()) return Promise.resolve(0);
-      return rest('audits?select=id,payload,updated_at&order=updated_at.desc&limit=100')
+      return requireAuth().then(function () {
+        return rest('audits?select=id,payload,updated_at&order=updated_at.desc&limit=100');
+      })
         .then(function (rows) {
           var added = 0;
           (rows || []).forEach(function (row) {

@@ -69,11 +69,45 @@ audits retry automatically when the device comes back online. Settings also
 offers *Pull audits from the cloud* to fetch records captured on other
 devices.
 
-The schema lives in the Supabase migration `homsci_audit_sync`. The app uses
-the publishable anon key (safe to embed); RLS policies currently allow
-anonymous read/insert/update on the two audit tables because field devices
-are unauthenticated — add crew logins and tighten the policies to
-`authenticated` when accounts land.
+The schema lives in the Supabase migrations `homsci_audit_sync` and
+`homsci_auth_tighten_rls`. The app uses the publishable anon key (safe to
+embed) for project routing only — data access requires a signed-in crew
+member (see below).
+
+## Crew authentication
+
+Sign-in is Supabase Auth (email + password) over plain fetch (`js/auth.js`):
+login, signup (with name), token refresh, and logout. The app stays fully
+usable **offline without an account** — signing in is what unlocks cloud sync
+and job import. Sessions persist in local state and refresh automatically;
+the auditor profile (name, avatar initials) follows the signed-in user.
+
+RLS is **authenticated-only**: all read/insert/update policies on
+`public.audits`, `public.audit_photos`, and the storage bucket require the
+`authenticated` role. Photo reads remain via unguessable public object URLs
+(capability URLs) so `<img>` tags and proposals render without signed URLs;
+bucket listing and all writes require sign-in. All signed-in crew share the
+company audit repository by design (`created_by` records provenance for
+future per-crew rules).
+
+Provision crew accounts from the Supabase dashboard (Auth → Users) or let
+crew self-register via the app's Create Account form — enable/disable email
+confirmation under Auth → Providers to control that flow.
+
+## Housecall Pro job import
+
+The dashboard (truck icon) and Settings can import upcoming Housecall Pro
+jobs into the schedule. The company API key is **never on the device**: the
+`hcp-jobs` Supabase Edge Function proxies `api.housecallpro.com` and returns
+a slim job list (customer, address, scheduled start, work status) to
+signed-in crew (JWT verified). Imported jobs appear as scheduled evaluations
+with an `HCP` chip, dedupe on the Housecall Pro job id, and refresh schedule
+details on re-import while untouched.
+
+To connect: create an API key in Housecall Pro (Settings → API) and set it
+as a function secret — `supabase secrets set HCP_API_KEY=<key>` (or
+Dashboard → Edge Functions → hcp-jobs → Secrets). Until the secret exists
+the function reports "not configured" and the app explains what to do.
 
 ## Energy Model (optional, external API)
 
