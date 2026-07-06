@@ -25,7 +25,8 @@
       '<div class="top"><div class="who"><b>' + esc(e.customer.name || 'Unnamed customer') + '</b>' +
       '<span class="loc">' + icon('pin') + esc(e.customer.address || 'No address') + '</span></div>' +
       '<div class="when">' + t.hm + '<small>' + t.ap + '</small></div></div>' +
-      '<div class="bottom"><span class="pill ' + chip + '">' + esc(e.appointment.type) + '</span>' +
+      '<div class="bottom"><span style="display:inline-flex;gap:6px"><span class="pill ' + chip + '">' + esc(e.appointment.type) + '</span>' +
+      (e.source === 'housecallpro' ? '<span class="pill magenta">HCP</span>' : '') + '</span>' +
       '<span class="state">' + esc(e.appointment.state) + '</span></div>' +
       '</button>';
   }
@@ -95,7 +96,9 @@
       return '<div class="day-label">' + esc(fmtDay(day)) + '</div>' + byDay[day].map(apptCard).join('');
     }).join('');
 
-    return UI.appbar() +
+    return UI.appbar({
+        actions: Backend.ready() ? '<button class="iconbtn" data-action="hcp-import" aria-label="Import Housecall Pro jobs" title="Import Housecall Pro jobs">' + icon('truck') + '</button>' : ''
+      }) +
       '<div class="screen">' +
       '<div class="searchbar">' + icon('search') +
       '<input placeholder="Find prior evaluations by customer name" data-action-input="dash-search"></div>' +
@@ -291,27 +294,69 @@
       '</div>';
   };
 
+  /* ---------------- Crew Sign In ---------------- */
+  window.ScreenLogin = function () {
+    return '<div class="screen" style="padding-top:56px">' +
+      '<div style="text-align:center;margin-bottom:26px">' +
+      '<span class="badge-ic" style="width:56px;height:56px;border-radius:16px;background:var(--green);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:26px">' + icon('bolt') + '</span>' +
+      '<h1 class="screen-title" style="margin-top:14px">Crew Sign In</h1>' +
+      '<p class="screen-sub" style="margin-bottom:0">Sign in to sync audits and photos to the HomSci cloud.<br>The app works offline without an account.</p>' +
+      '</div>' +
+      '<div class="card">' +
+      UI.field({ label: 'Email', bind: 'login.email', type: 'email', placeholder: 'you@gethealthyhome.com', value: LoginDraft.email }) +
+      UI.field({ label: 'Password', bind: 'login.password', type: 'password', placeholder: '••••••••', value: '' }) +
+      '<button class="btn primary" data-action="auth-login" id="auth-login-btn">Sign In</button>' +
+      '</div>' +
+      '<div class="card"><h3>New crew member?</h3>' +
+      UI.field({ label: 'Full Name', bind: 'login.name', placeholder: 'Your name', value: LoginDraft.name }) +
+      '<button class="btn secondary" data-action="auth-signup">Create Account</button>' +
+      '<p class="hint" style="margin-top:10px">Uses the email + password above. Depending on project settings you may need to confirm your email before signing in.</p>' +
+      '</div>' +
+      '<button class="btn ghost" data-action="nav" data-route="#/dashboard">Continue offline ' + icon('chevR') + '</button>' +
+      '</div>';
+  };
+  window.LoginDraft = {};
+
   /* ---------------- Settings ---------------- */
   window.ScreenSettings = function () {
     var s = Store.state;
     var hasDemo = Store.listEvals().some(function (e) { return e.demo; });
+    var sess = Auth.session();
     return UI.subbar('Settings', '#/dashboard') +
       '<div class="screen">' +
       '<h1 class="screen-title">Settings</h1>' +
+
+      '<div class="card"><h3>Crew Account</h3>' +
+      (sess
+        ? '<div style="display:flex;gap:8px;margin-bottom:10px">' + UI.pill('complete', 'Signed In') + '</div>' +
+          '<p class="hint">Signed in as <b>' + UI.esc(sess.user.name) + '</b> (' + UI.esc(sess.user.email) + '). Cloud sync is unlocked for this device.</p>' +
+          '<button class="btn secondary" data-action="auth-logout">Sign Out</button>'
+        : '<div style="display:flex;gap:8px;margin-bottom:10px">' + UI.pill('warn', 'Signed Out') + '</div>' +
+          '<p class="hint">Audits stay on this device until a crew member signs in — cloud sync and Housecall Pro import require an account.</p>' +
+          '<button class="btn primary" data-action="nav" data-route="#/login">Sign In / Create Account</button>') +
+      '</div>' +
+
       '<div class="card"><h3>Auditor Profile</h3>' +
       UI.field({ label: 'Auditor Name', bind: 'auditor.name', placeholder: 'Your name', value: s.auditor.name }) +
       UI.field({ label: 'Initials (avatar)', bind: 'auditor.initials', placeholder: 'JD', value: s.auditor.initials }) +
       '</div>' +
+
       '<div class="card"><h3>Cloud Sync</h3>' +
       (Backend.ready()
-        ? '<p class="hint">Connected to the HomSci cloud (Supabase). Audits and photos sync when you finalize an assessment, and retry automatically when you come back online.</p>' +
-          '<div style="display:flex;gap:8px;margin-bottom:10px">' + UI.pill('complete', 'Backend Connected') +
+        ? '<p class="hint">Connected to the HomSci cloud (Supabase). Audits and photos sync when you finalize an assessment, and retry automatically when you come back online.' +
+          (sess ? '' : ' <b>Sign in to enable.</b>') + '</p>' +
+          '<div style="display:flex;gap:8px;margin-bottom:10px">' + UI.pill(sess ? 'complete' : 'warn', sess ? 'Backend Connected' : 'Sign-in Required') +
           UI.pill('pending', Store.listEvals().filter(function (e) { return e.status === 'complete' && !e.synced && !e.remote; }).length + ' pending') + '</div>' +
           '<button class="btn secondary" data-action="sync-now">' + icon('sync') + ' Sync pending audits now</button>' +
           '<div style="height:8px"></div>' +
           '<button class="btn secondary" data-action="pull-remote">' + icon('export') + ' Pull audits from the cloud</button>'
         : '<p class="hint">No backend configured — audits stay on this device. Set the Supabase URL and publishable key in <code>js/config.js</code>.</p>' +
           '<div>' + UI.pill('warn', 'Offline Only') + '</div>') +
+      '</div>' +
+
+      '<div class="card"><h3>Housecall Pro</h3>' +
+      '<p class="hint">Import upcoming Housecall Pro jobs into the schedule. Requires sign-in; the company API key lives server-side (Supabase secret <code>HCP_API_KEY</code>), never on this device.</p>' +
+      '<button class="btn secondary" data-action="hcp-import">' + icon('truck') + ' Import jobs from Housecall Pro</button>' +
       '</div>' +
       '<div class="card"><h3>Data</h3>' +
       '<p class="hint">Audits are stored on this device first; the cloud copy is created on sync.</p>' +

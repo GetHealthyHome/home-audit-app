@@ -56,6 +56,7 @@
         case 'new': html = ScreenNewEval(); break;
         case 'history': html = ScreenHistory(uiState.historyQuery); break;
         case 'settings': html = ScreenSettings(); break;
+        case 'login': html = ScreenLogin(); break;
         case 'assess': {
           var active = Store.activeEval();
           if (active) { location.hash = '#/eval/' + active.id + '/hub'; return; }
@@ -128,8 +129,9 @@
 
   /* ---------- data-bind: write-through without re-render ---------- */
   function bindTarget(path) {
-    // 'new.*' → NewEvalDraft; 'auditor.*' → Store.state; else active evaluation
+    // 'new.*'/'login.*' → transient drafts; 'auditor.*' → Store.state; else active evaluation
     if (path.indexOf('new.') === 0) return { obj: NewEvalDraft, path: path.slice(4), transient: true };
+    if (path.indexOf('login.') === 0) return { obj: LoginDraft, path: path.slice(6), transient: true };
     if (path.indexOf('auditor.') === 0) return { obj: Store.state, path: path };
     return { obj: Store.activeEval(), path: path };
   }
@@ -386,9 +388,62 @@
           UI.toast('Assessment + ' + ev.photos.length + ' photos saved to the HomSci cloud.');
           Store.reindexRemote();
           rerender();
-        }).catch(function () {
-          UI.toast('Offline — saved locally; will sync when you reconnect.');
+        }).catch(function (e) {
+          UI.toast(e && e.message === 'SIGN_IN_REQUIRED'
+            ? 'Finalized locally — sign in (Settings) to sync to the cloud.'
+            : 'Offline — saved locally; will sync when you reconnect.');
           rerender();
+        });
+      },
+      'auth-login': function () {
+        if (!LoginDraft.email || !LoginDraft.password) { UI.toast('Email and password required.'); return; }
+        var btn = document.getElementById('auth-login-btn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
+        Auth.login(LoginDraft.email.trim(), LoginDraft.password).then(function () {
+          delete LoginDraft.password;
+          UI.toast('Signed in. Cloud sync unlocked.');
+          Backend.syncPending();
+          location.hash = '#/dashboard';
+        }).catch(function (e) {
+          UI.toast(e.name === 'TypeError' ? 'Offline — cannot reach the sign-in service.' : e.message);
+          rerender();
+        });
+      },
+      'auth-signup': function () {
+        if (!LoginDraft.email || !LoginDraft.password) { UI.toast('Email and password required.'); return; }
+        Auth.signup(LoginDraft.email.trim(), LoginDraft.password, LoginDraft.name || '').then(function (res) {
+          delete LoginDraft.password;
+          if (res.active) {
+            UI.toast('Account created — you are signed in.');
+            location.hash = '#/dashboard';
+          } else {
+            UI.toast('Account created. Confirm via the email we sent, then sign in.');
+            rerender();
+          }
+        }).catch(function (e) {
+          UI.toast(e.name === 'TypeError' ? 'Offline — cannot reach the sign-in service.' : e.message);
+        });
+      },
+      'auth-logout': function () {
+        Auth.logout().then(function () { UI.toast('Signed out.'); rerender(); });
+      },
+      'hcp-import': function () {
+        if (!Backend.ready()) { UI.toast('No backend configured.'); return; }
+        if (!Auth.signedIn()) { UI.toast('Sign in first — job import needs a crew account.'); location.hash = '#/login'; return; }
+        UI.toast('Importing jobs from Housecall Pro…');
+        Hcp.importJobs().then(function (res) {
+          UI.toast(res.added + ' new job' + (res.added === 1 ? '' : 's') + ' imported' +
+            (res.updated ? ', ' + res.updated + ' updated' : '') + ' (' + res.total + ' upcoming).');
+          rerender();
+        }).catch(function (e) {
+          if (e.notConfigured) {
+            UI.toast('Housecall Pro not connected yet — set the HCP_API_KEY secret on the hcp-jobs function.');
+          } else if (e.message === 'SIGN_IN_REQUIRED') {
+            UI.toast('Sign in first — job import needs a crew account.');
+            location.hash = '#/login';
+          } else {
+            UI.toast(e.name === 'TypeError' ? 'Offline — cannot reach the import service.' : e.message);
+          }
         });
       },
       'energy-run': function () {
@@ -410,6 +465,7 @@
       },
       'sync-now': function () {
         if (!Backend.ready()) { UI.toast('No backend configured.'); return; }
+        if (!Auth.signedIn()) { UI.toast('Sign in first — cloud sync needs a crew account.'); location.hash = '#/login'; return; }
         UI.toast('Syncing pending audits…');
         Backend.syncPending().then(function () {
           UI.toast('Sync complete.');
@@ -418,6 +474,7 @@
       },
       'pull-remote': function () {
         if (!Backend.ready()) { UI.toast('No backend configured.'); return; }
+        if (!Auth.signedIn()) { UI.toast('Sign in first — cloud sync needs a crew account.'); location.hash = '#/login'; return; }
         UI.toast('Fetching audits from the cloud…');
         Backend.pullAudits().then(function (added) {
           Store.reindexRemote();
