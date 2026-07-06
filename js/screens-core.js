@@ -18,7 +18,70 @@
   }
 
   /* ---------------- Dashboard ---------------- */
-  window.ScreenDashboard = function () {
+  function apptCard(e) {
+    var t = fmtTime(e.appointment.time);
+    var chip = e.appointment.type === 'Estimate' ? 'chip-est' : 'chip-eval';
+    return '<button class="appt-card" data-action="open-eval" data-id="' + e.id + '">' +
+      '<div class="top"><div class="who"><b>' + esc(e.customer.name || 'Unnamed customer') + '</b>' +
+      '<span class="loc">' + icon('pin') + esc(e.customer.address || 'No address') + '</span></div>' +
+      '<div class="when">' + t.hm + '<small>' + t.ap + '</small></div></div>' +
+      '<div class="bottom"><span class="pill ' + chip + '">' + esc(e.appointment.type) + '</span>' +
+      '<span class="state">' + esc(e.appointment.state) + '</span></div>' +
+      '</button>';
+  }
+
+  function calendarView(open, calMonth, calSelected) {
+    // calMonth: 'YYYY-MM'
+    var parts = calMonth.split('-');
+    var year = parseInt(parts[0], 10), month = parseInt(parts[1], 10) - 1;
+    var first = new Date(year, month, 1);
+    var daysInMonth = new Date(year, month + 1, 0).getDate();
+    var startDow = first.getDay(); // 0 = Sunday
+    var todayIso = new Date().toISOString().slice(0, 10);
+
+    var byDay = {};
+    open.forEach(function (e) {
+      (byDay[e.appointment.date] = byDay[e.appointment.date] || []).push(e);
+    });
+
+    var monthLabel = first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    var prev = month === 0 ? (year - 1) + '-12' : year + '-' + String(month < 10 ? '0' : '') + month;
+    var next = month === 11 ? (year + 1) + '-01' : year + '-' + (month + 2 < 10 ? '0' : '') + (month + 2);
+
+    var cells = '';
+    for (var i = 0; i < startDow; i++) cells += '<span class="cal-cell empty"></span>';
+    for (var d = 1; d <= daysInMonth; d++) {
+      var iso = year + '-' + (month + 1 < 10 ? '0' : '') + (month + 1) + '-' + (d < 10 ? '0' : '') + d;
+      var has = byDay[iso];
+      cells += '<button class="cal-cell' + (iso === todayIso ? ' today' : '') +
+        (iso === calSelected ? ' selected' : '') + '" data-action="cal-day" data-date="' + iso + '">' +
+        d + (has ? '<span class="cal-dots">' + has.slice(0, 3).map(function (e) {
+          return '<span class="cd ' + (e.appointment.type === 'Estimate' ? 'est' : 'ev') + '"></span>';
+        }).join('') + '</span>' : '') + '</button>';
+    }
+
+    var dayList = '';
+    if (calSelected) {
+      var todays = byDay[calSelected] || [];
+      dayList = '<div class="day-label">' + esc(fmtDay(calSelected)) + '</div>' +
+        (todays.map(apptCard).join('') ||
+          '<div class="empty" style="padding:18px"><p>Nothing scheduled this day.</p></div>');
+    }
+
+    return '<div class="card cal-card">' +
+      '<div class="cal-head">' +
+      '<button class="iconbtn" data-action="cal-nav" data-month="' + prev + '" aria-label="Previous month">' + icon('back') + '</button>' +
+      '<b>' + esc(monthLabel) + '</b>' +
+      '<button class="iconbtn" data-action="cal-nav" data-month="' + next + '" aria-label="Next month" style="transform:scaleX(-1)">' + icon('back') + '</button>' +
+      '</div>' +
+      '<div class="cal-grid cal-dow">' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(function (d) { return '<span>' + d + '</span>'; }).join('') + '</div>' +
+      '<div class="cal-grid">' + cells + '</div>' +
+      '<div class="cal-legend"><span><span class="cd ev"></span> Evaluation</span><span><span class="cd est"></span> Estimate</span></div>' +
+      '</div>' + dayList;
+  }
+
+  window.ScreenDashboard = function (view, calMonth, calSelected) {
+    view = view || 'list';
     var evals = Store.listEvals();
     var open = evals.filter(function (e) { return e.status !== 'complete'; });
     var next = open.filter(function (e) { return e.appointment.time; })[0];
@@ -29,18 +92,7 @@
     });
 
     var schedule = Object.keys(byDay).sort().map(function (day) {
-      return '<div class="day-label">' + esc(fmtDay(day)) + '</div>' +
-        byDay[day].map(function (e) {
-          var t = fmtTime(e.appointment.time);
-          var chip = e.appointment.type === 'Estimate' ? 'chip-est' : 'chip-eval';
-          return '<button class="appt-card" data-action="open-eval" data-id="' + e.id + '">' +
-            '<div class="top"><div class="who"><b>' + esc(e.customer.name || 'Unnamed customer') + '</b>' +
-            '<span class="loc">' + icon('pin') + esc(e.customer.address || 'No address') + '</span></div>' +
-            '<div class="when">' + t.hm + '<small>' + t.ap + '</small></div></div>' +
-            '<div class="bottom"><span class="pill ' + chip + '">' + esc(e.appointment.type) + '</span>' +
-            '<span class="state">' + esc(e.appointment.state) + '</span></div>' +
-            '</button>';
-        }).join('');
+      return '<div class="day-label">' + esc(fmtDay(day)) + '</div>' + byDay[day].map(apptCard).join('');
     }).join('');
 
     return UI.appbar() +
@@ -56,8 +108,11 @@
       '</div>' +
       '<div class="section-heading"><h2>Schedule</h2>' +
       '<div class="segmented lite" style="width:110px">' +
-      '<button class="on">List</button><button data-action="toast" data-msg="Calendar view is coming in a later phase.">Cal</button></div></div>' +
-      (schedule || '<div class="empty">' + icon('clipboard') + '<b>No audits scheduled</b><p>Tap + to start a new evaluation.</p></div>') +
+      '<button class="' + (view === 'list' ? 'on' : '') + '" data-action="dash-view" data-view="list">List</button>' +
+      '<button class="' + (view === 'cal' ? 'on' : '') + '" data-action="dash-view" data-view="cal">Cal</button></div></div>' +
+      (view === 'cal'
+        ? calendarView(open, calMonth || new Date().toISOString().slice(0, 7), calSelected)
+        : (schedule || '<div class="empty">' + icon('clipboard') + '<b>No audits scheduled</b><p>Tap + to start a new evaluation.</p></div>')) +
       '</div>';
   };
 
@@ -149,6 +204,12 @@
       zoneRows +
 
       UI.sectionHeading('Deliverables', 'doc') +
+      '<button class="module-row" data-action="nav" data-route="#/eval/' + ev.id + '/energy">' +
+      '<span class="mic" style="background:var(--blue-soft);color:var(--blue-ink)">' + icon('chart') + '</span>' +
+      '<span class="mbody"><b>Energy Model</b>' +
+      (ev.energyModel && ev.energyModel.climate ? UI.pill('complete', 'Modeled') : UI.pill('progress', 'Optional')) +
+      '<span style="display:block;font:600 11px var(--font-body);color:var(--faint);margin-top:4px">Climate-normalized cost model — run on request</span></span>' +
+      '<span class="chev">' + icon('chevR') + '</span></button>' +
       moduleRow('#/eval/' + ev.id + '/catalog', 'bolt', 'Improvement Recommendations', ms.recsUnlocked ? (ev.selections.length ? 'progress' : 'pending') : 'locked') +
       moduleRow('#/eval/' + ev.id + '/media', 'photo', 'Media Review & Tagging', ev.photos.length ? 'progress' : 'pending',
         '<span style="display:block;font:600 11px var(--font-body);color:var(--faint);margin-top:4px">' + ev.photos.length + ' photos captured</span>') +
@@ -241,8 +302,19 @@
       UI.field({ label: 'Auditor Name', bind: 'auditor.name', placeholder: 'Your name', value: s.auditor.name }) +
       UI.field({ label: 'Initials (avatar)', bind: 'auditor.initials', placeholder: 'JD', value: s.auditor.initials }) +
       '</div>' +
+      '<div class="card"><h3>Cloud Sync</h3>' +
+      (Backend.ready()
+        ? '<p class="hint">Connected to the HomSci cloud (Supabase). Audits and photos sync when you finalize an assessment, and retry automatically when you come back online.</p>' +
+          '<div style="display:flex;gap:8px;margin-bottom:10px">' + UI.pill('complete', 'Backend Connected') +
+          UI.pill('pending', Store.listEvals().filter(function (e) { return e.status === 'complete' && !e.synced && !e.remote; }).length + ' pending') + '</div>' +
+          '<button class="btn secondary" data-action="sync-now">' + icon('sync') + ' Sync pending audits now</button>' +
+          '<div style="height:8px"></div>' +
+          '<button class="btn secondary" data-action="pull-remote">' + icon('export') + ' Pull audits from the cloud</button>'
+        : '<p class="hint">No backend configured — audits stay on this device. Set the Supabase URL and publishable key in <code>js/config.js</code>.</p>' +
+          '<div>' + UI.pill('warn', 'Offline Only') + '</div>') +
+      '</div>' +
       '<div class="card"><h3>Data</h3>' +
-      '<p class="hint">Audits are stored on this device and synced to the HomSci cloud when you finalize an assessment.</p>' +
+      '<p class="hint">Audits are stored on this device first; the cloud copy is created on sync.</p>' +
       (hasDemo ? '<button class="btn secondary" data-action="clear-demo">Remove demo appointments</button>' : '') +
       '<div style="height:8px"></div>' +
       '<button class="btn danger-ghost" data-action="wipe">Erase all local data…</button>' +
