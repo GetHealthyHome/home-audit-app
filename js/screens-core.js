@@ -204,6 +204,12 @@
       zoneRows +
 
       UI.sectionHeading('Deliverables', 'doc') +
+      '<button class="module-row" data-action="nav" data-route="#/eval/' + ev.id + '/energy">' +
+      '<span class="mic" style="background:var(--blue-soft);color:var(--blue-ink)">' + icon('chart') + '</span>' +
+      '<span class="mbody"><b>Energy Model</b>' +
+      (ev.energyModel && ev.energyModel.climate ? UI.pill('complete', 'Modeled') : UI.pill('progress', 'Optional')) +
+      '<span style="display:block;font:600 11px var(--font-body);color:var(--faint);margin-top:4px">Climate-normalized cost model — run on request</span></span>' +
+      '<span class="chev">' + icon('chevR') + '</span></button>' +
       moduleRow('#/eval/' + ev.id + '/catalog', 'bolt', 'Improvement Recommendations', ms.recsUnlocked ? (ev.selections.length ? 'progress' : 'pending') : 'locked') +
       moduleRow('#/eval/' + ev.id + '/media', 'photo', 'Media Review & Tagging', ev.photos.length ? 'progress' : 'pending',
         '<span style="display:block;font:600 11px var(--font-body);color:var(--faint);margin-top:4px">' + ev.photos.length + ' photos captured</span>') +

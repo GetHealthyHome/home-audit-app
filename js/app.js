@@ -46,6 +46,7 @@
         case 'media': html = ScreenMedia(ev, uiState.mediaFilter, uiState.mediaEditing); break;
         case 'proposal-media': html = ScreenProposalMedia(ev); break;
         case 'proposal-doc': html = ScreenProposalDoc(ev); break;
+        case 'energy': html = ScreenEnergy(ev); break;
         case 'record': html = ScreenRecord(ev); break;
         default: html = ScreenHub(ev);
       }
@@ -389,6 +390,23 @@
           UI.toast('Offline — saved locally; will sync when you reconnect.');
           rerender();
         });
+      },
+      'energy-run': function () {
+        var btn = document.getElementById('energy-run-btn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Fetching climate data…'; }
+        EnergyModel.run(ev).then(function () {
+          UI.toast('Energy model ready.');
+          rerender();
+        }).catch(function (e) {
+          UI.toast(e.message.indexOf('fetch') >= 0 || e.name === 'TypeError'
+            ? 'Offline — energy modeling needs a connection. Audit data is unaffected.'
+            : e.message);
+          rerender();
+        });
+      },
+      'energy-clear': function () {
+        delete ev.energyModel;
+        Store.save(); rerender();
       },
       'sync-now': function () {
         if (!Backend.ready()) { UI.toast('No backend configured.'); return; }

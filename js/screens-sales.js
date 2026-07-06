@@ -167,6 +167,17 @@
           '<div class="foot">' + UI.pill('progress', 'Optimized') + ' Ahead of market average (' + DATA.MARKET_AVG_PAYBACK_YEARS + 'y)</div>' : '') +
         '</div></div>' +
 
+        (function () {
+          var em = ev.energyModel && ev.energyModel.climate ? EnergyModel.compute(ev) : null;
+          if (!em || !em.totalCost || !fin.savings) return '';
+          var pct = Math.round(fin.savings / em.totalCost * 100);
+          return '<div class="insight"><b>' + icon('chart') + ' Energy Model</b><br>' +
+            'This home’s modeled annual energy spend is ' + UI.money(em.totalCost) +
+            ' (' + ev.energyModel.climate.hdd.toLocaleString() + ' HDD at ' +
+            esc(ev.energyModel.resolved ? ev.energyModel.resolved.name : ev.energyModel.location) +
+            '). The selected improvements target ≈ ' + pct + '% of it.</div>';
+        })() +
+
         UI.sectionHeading('Investment Breakdown', 'dollar') + lineItems +
 
         '<div class="card"><h3>Cumulative ROI Projection</h3>' +
@@ -305,6 +316,16 @@
       (fin.payback != null && fin.payback < DATA.MARKET_AVG_PAYBACK_YEARS ?
         '<p style="font-size:13.5px;color:var(--green);font-weight:700">Your plan pays for itself ' +
         Math.round((DATA.MARKET_AVG_PAYBACK_YEARS - fin.payback) * 10) / 10 + ' years ahead of the market average (' + DATA.MARKET_AVG_PAYBACK_YEARS + ' years).</p>' : '') +
+      (function () {
+        var em = ev.energyModel && ev.energyModel.climate ? EnergyModel.compute(ev) : null;
+        if (!em || !em.totalCost) return '';
+        var loc = ev.energyModel.resolved ? ev.energyModel.resolved.name +
+          (ev.energyModel.resolved.admin1 ? ', ' + ev.energyModel.resolved.admin1 : '') : ev.energyModel.location;
+        return '<p style="font-size:13.5px;color:var(--muted)">Using a full year of local weather data for <b>' + esc(loc) +
+          '</b> (' + ev.energyModel.climate.hdd.toLocaleString() + ' heating degree days), we model your current energy spend at <b>' +
+          UI.money(em.totalCost) + ' per year</b>' +
+          (fin.savings ? ' — this plan addresses about <b style="color:var(--green)">' + Math.round(fin.savings / em.totalCost * 100) + '%</b> of it' : '') + '.</p>';
+      })() +
       '</section>';
 
     /* Investment breakdown */
