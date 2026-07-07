@@ -451,6 +451,17 @@
 
       (sysRows ? '<div class="card">' + UI.sectionHeading('Appliance Inventory', 'boiler') + '<div class="kv-list">' + sysRows + '</div></div>' : '') +
 
+      (function () {
+        var mech = ev.zones.mechanicals;
+        if (!mech || !Object.keys(mech.systems || {}).length) return '';
+        var rows = DATA.MECHANICALS.filter(function (s) { return mech.systems[s.id]; }).map(function (s) {
+          var d = mech.systems[s.id] || {};
+          var summary = [d.type || d.amperage, d.age ? d.age + ' yrs' : '', d.condition || d.space].filter(Boolean).join(' · ');
+          return '<div class="kv-row"><span class="k">' + esc(s.name) + '</span><span class="v">' + esc(summary || 'Recorded') + '</span></div>';
+        }).join('');
+        return '<div class="card">' + UI.sectionHeading('Mechanicals', 'flame') + '<div class="kv-list">' + rows + '</div></div>';
+      })() +
+
       (windows.length ? '<div class="card">' + UI.sectionHeading('Fenestration', 'window') +
         '<div class="kv-list">' +
         '<div class="kv-row"><span class="k">Window Count</span><span class="v">' + windows.length + ' Units</span></div>' +

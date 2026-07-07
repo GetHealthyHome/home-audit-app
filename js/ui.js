@@ -119,6 +119,34 @@
       return '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     },
 
+    /* Grab the auditor's attention (IAQ timer done, etc.): audible chirp +
+       vibration + toast. Audio can be blocked until a user gesture — every
+       path that starts a timer is a tap, so the context is usually unlocked. */
+    alertAuditor: function (msg) {
+      try {
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) {
+          UI._audioCtx = UI._audioCtx || new Ctx();
+          var ctx = UI._audioCtx;
+          if (ctx.state === 'suspended') ctx.resume();
+          for (var i = 0; i < 3; i++) {
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 880;
+            gain.gain.setValueAtTime(0.0001, ctx.currentTime + i * 0.35);
+            gain.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + i * 0.35 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.35 + 0.28);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(ctx.currentTime + i * 0.35);
+            osc.stop(ctx.currentTime + i * 0.35 + 0.3);
+          }
+        }
+      } catch (e) { /* audio blocked — vibration/toast still fire */ }
+      try { if (navigator.vibrate) navigator.vibrate([250, 120, 250, 120, 400]); } catch (e) { /* unsupported */ }
+      UI.toast(msg);
+    },
+
     toast: function (msg) {
       var t = document.getElementById('toast');
       t.textContent = msg;
