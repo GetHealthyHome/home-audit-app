@@ -152,25 +152,31 @@
         DATA.IAQ_MINUTES + '-minute sampling window. You can continue using your phone; the test will run in the background.</p></div>' +
         '<div class="cta-dock"><button class="btn ghost" data-action="iaq-reset">Cancel Test</button></div>';
     } else {
-      var co2Band = Store.iaqBand(DATA.IAQ_METRICS[0], t.co2);
-      var vocBand = Store.iaqBand(DATA.IAQ_METRICS[1], t.voc);
+      var TONE_PILL = { good: 'complete', ok: 'progress', bad: 'action' };
+      var metricCards = DATA.IAQ_METRICS.map(function (m) {
+        var band = Store.iaqBand(m, t[m.id]);
+        return '<div class="result-card"><div class="rk"><span>' + esc(m.name) +
+          (m.required ? ' <span style="color:var(--red)">*</span>' : '') + '</span>' +
+          (band ? UI.pill(TONE_PILL[band.tone] || 'progress', band.label) : '') + '</div>' +
+          '<div style="display:flex;align-items:baseline;gap:8px">' +
+          '<input class="input bignum-input" style="max-width:170px" type="number" step="any" inputmode="decimal"' +
+          ' placeholder="' + esc(m.placeholder || '') + '" data-bind="tests.iaq.' + m.id + '" value="' + esc(t[m.id] == null ? '' : t[m.id]) + '">' +
+          '<span class="rv" style="font-size:15px;color:var(--muted)">' + esc(m.unit) + '</span></div>' +
+          '<div class="rfoot">' + esc(m.foot) + '</div></div>';
+      }).join('');
+      var requiredDone = Store.iaqRequiredDone(ev);
+
       body = '<div style="text-align:center;padding:16px 0">' +
         '<span class="badge-ic" style="width:56px;height:56px;border-radius:999px;background:var(--green-soft);color:var(--green);display:inline-flex;align-items:center;justify-content:center;font-size:26px">' + icon('check') + '</span>' +
         '<h1 class="screen-title" style="margin-top:16px">Test Complete</h1>' +
-        '<p class="screen-sub" style="max-width:300px;margin:0 auto 20px">' + DATA.IAQ_MINUTES + '-minute sampling period complete. Enter the captured baseline data below.</p></div>' +
+        '<p class="screen-sub" style="max-width:300px;margin:0 auto 20px">' + DATA.IAQ_MINUTES + '-minute sampling period complete. Enter the captured baseline data below. <span style="color:var(--red)">*</span> required.</p></div>' +
 
-        '<div class="result-card"><div class="rk"><span>CO2 Level</span>' + (co2Band ? UI.pill(co2Band === 'Optimal' ? 'complete' : co2Band === 'Acceptable' ? 'progress' : 'action', co2Band) : '') + '</div>' +
-        '<div style="display:flex;align-items:baseline;gap:8px"><input class="input bignum-input" style="max-width:170px" type="number" inputmode="numeric" placeholder="412" data-bind="tests.iaq.co2" value="' + esc(t.co2) + '"><span class="rv" style="font-size:15px;color:var(--muted)">ppm</span></div>' +
-        '<div class="rfoot">Atmospheric baseline average</div></div>' +
-
-        '<div class="result-card"><div class="rk"><span>VOC Concentration</span>' + (vocBand ? UI.pill(vocBand === 'Excellent' ? 'complete' : vocBand === 'Acceptable' ? 'progress' : 'action', vocBand) : '') + '</div>' +
-        '<div style="display:flex;align-items:baseline;gap:8px"><input class="input bignum-input" style="max-width:170px" type="number" step="0.1" inputmode="decimal" placeholder="0.2" data-bind="tests.iaq.voc" value="' + esc(t.voc) + '"><span class="rv" style="font-size:15px;color:var(--muted)">mg/m³</span></div>' +
-        '<div class="rfoot">Organic compound threshold</div></div>' +
+        metricCards +
 
         '<div class="insight"><b>Precision:</b> Sensor calibration assumes ambient stabilization in the ' + DATA.IAQ_MINUTES + '-minute window. Retest if doors or windows were opened.</div>' +
 
         '<div class="cta-dock">' +
-        '<button class="btn primary" data-action="iaq-save" ' + (t.co2 !== '' && t.voc !== '' ? '' : 'disabled') + '>Save &amp; Continue Assessment ' + icon('chevR') + '</button>' +
+        '<button class="btn primary" data-action="iaq-save" ' + (requiredDone ? '' : 'disabled') + '>Save &amp; Continue Assessment ' + icon('chevR') + '</button>' +
         '<div style="height:8px"></div>' +
         '<button class="btn secondary" data-action="iaq-reset">Retest (Discard Data)</button></div>';
     }
