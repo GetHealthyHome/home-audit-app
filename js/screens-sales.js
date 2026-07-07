@@ -443,8 +443,12 @@
       '<div class="card">' + UI.sectionHeading('Diagnostics', 'shield') +
       '<div class="kv-list">' +
       '<div class="kv-row"><span class="k">Blower Door CFM50</span><span class="v ' + (ms.blower === 'complete' ? 'good' : '') + '">' + esc(ev.tests.blower.cfm50 || 'Pending') + '</span></div>' +
-      '<div class="kv-row"><span class="k">CO2 Baseline</span><span class="v">' + esc(ev.tests.iaq.co2 ? ev.tests.iaq.co2 + ' ppm' : 'Pending') + '</span></div>' +
-      '<div class="kv-row"><span class="k">VOC</span><span class="v">' + esc(ev.tests.iaq.voc ? ev.tests.iaq.voc + ' mg/m³' : 'Pending') + '</span></div>' +
+      DATA.IAQ_METRICS.map(function (m) {
+        var v = ev.tests.iaq[m.id];
+        if ((v === '' || v == null) && !m.required) return '';
+        return '<div class="kv-row"><span class="k">' + esc(m.name) + '</span><span class="v">' +
+          esc(v !== '' && v != null ? v + ' ' + m.unit : 'Pending') + '</span></div>';
+      }).join('') +
       '<div class="kv-row"><span class="k">Combustion Safety</span><span class="v ' + (ms.caz === 'complete' ? 'good' : '') + '">' +
       (ms.caz === 'complete' ? 'All hard-stops passed' : ms.caz === 'action' ? 'FAILURES RECORDED' : 'Pending') + '</span></div>' +
       '</div></div>' +

@@ -24,7 +24,11 @@
       tests: {
         blower: { checklist: {}, ring: 'Open', cfm50: '', target: '', photos: {} },
         caz: { tests: {}, ambientCO: '', notes: '' },
-        iaq: { startedAt: null, finishedAt: null, co2: '', voc: '' }
+        iaq: (function () {
+          var t = { startedAt: null, finishedAt: null };
+          DATA.IAQ_METRICS.forEach(function (m) { t[m.id] = ''; });
+          return t;
+        })()
       },
       photos: [], // {id, zone, label, required, ts, tag}
       selections: [], // catalog measure ids
@@ -266,13 +270,18 @@
       var rating = r >= 49 ? 'OPTIMAL' : r >= 30 ? 'ADEQUATE' : 'BELOW CODE';
       return { r: r, rating: rating };
     },
+    /* Returns the matched band object ({label, tone}) or null. */
     iaqBand: function (metric, value) {
       var v = parseFloat(value);
       if (isNaN(v)) return null;
       for (var i = 0; i < metric.bands.length; i++) {
-        if (v <= metric.bands[i].max) return metric.bands[i].label;
+        if (v <= metric.bands[i].max) return metric.bands[i];
       }
       return null;
+    },
+    iaqRequiredDone: function (ev) {
+      return DATA.IAQ_METRICS.filter(function (m) { return m.required; })
+        .every(function (m) { return ev.tests.iaq[m.id] !== '' && ev.tests.iaq[m.id] != null; });
     },
 
     /* Module statuses drive the Assessment Hub. */
@@ -292,7 +301,7 @@
         : cazRecorded.length > 0 ? 'progress' : 'pending';
 
       var iaq = ev.tests.iaq;
-      var iaqStatus = (iaq.co2 !== '' && iaq.voc !== '') ? 'complete'
+      var iaqStatus = Store.iaqRequiredDone(ev) ? 'complete'
         : iaq.startedAt ? 'progress' : 'pending';
 
       var a = Store.ashrae(ev);

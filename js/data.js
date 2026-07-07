@@ -128,13 +128,32 @@ window.DATA = {
     { id: 'spillage', name: 'Ambient CO/Spillage Test', icon: 'shield', desc: 'Check for room-level CO and spillage during worst-case depressurization.' }
   ],
 
-  /* ---- IAQ baseline test ---- */
+  /* ---- IAQ baseline test ----
+     tone: good -> green pill, ok -> blue pill, bad -> red pill.
+     `required` metrics gate Save & Continue; the rest are optional entries. */
   IAQ_MINUTES: 30,
   IAQ_METRICS: [
-    { id: 'co2', name: 'CO2 Level', unit: 'ppm', foot: 'Atmospheric baseline average',
-      bands: [{ max: 600, label: 'Optimal' }, { max: 1000, label: 'Acceptable' }, { max: Infinity, label: 'Elevated' }] },
-    { id: 'voc', name: 'VOC Concentration', unit: 'mg/m³', foot: 'Organic compound threshold',
-      bands: [{ max: 0.3, label: 'Excellent' }, { max: 0.5, label: 'Acceptable' }, { max: Infinity, label: 'Elevated' }] }
+    { id: 'pm', name: 'Particulate Matter', unit: 'µg/m³', placeholder: '8',
+      foot: 'PM2.5 average over the sampling window (EPA breakpoints)',
+      bands: [{ max: 12, label: 'Good', tone: 'good' }, { max: 35.4, label: 'Moderate', tone: 'ok' }, { max: Infinity, label: 'Elevated', tone: 'bad' }] },
+    { id: 'chemicals', name: 'Chemicals', unit: 'µg/m³', placeholder: '150',
+      foot: 'Total airborne chemicals (TVOC)',
+      bands: [{ max: 333, label: 'Low', tone: 'good' }, { max: 1000, label: 'Moderate', tone: 'ok' }, { max: Infinity, label: 'Elevated', tone: 'bad' }] },
+    { id: 'co2', name: 'Carbon Dioxide', unit: 'ppm', placeholder: '412', required: true,
+      foot: 'Atmospheric baseline average',
+      bands: [{ max: 600, label: 'Optimal', tone: 'good' }, { max: 1000, label: 'Acceptable', tone: 'ok' }, { max: Infinity, label: 'Elevated', tone: 'bad' }] },
+    { id: 'temp', name: 'Temperature', unit: '°F', placeholder: '70',
+      foot: 'Indoor ambient at the test location',
+      bands: [{ max: 61.9, label: 'Cold', tone: 'ok' }, { max: 78, label: 'Comfort Range', tone: 'good' }, { max: Infinity, label: 'Warm', tone: 'ok' }] },
+    { id: 'rh', name: 'Relative Humidity', unit: 'RH%', placeholder: '45',
+      foot: 'Target 30–60% RH for healthy air and mold control',
+      bands: [{ max: 29.9, label: 'Dry', tone: 'ok' }, { max: 60, label: 'Healthy Range', tone: 'good' }, { max: Infinity, label: 'Humid — Mold Risk', tone: 'bad' }] },
+    { id: 'co', name: 'Carbon Monoxide', unit: 'ppm', placeholder: '0',
+      foot: 'Ambient carbon monoxide at breathing height',
+      bands: [{ max: 0.9, label: 'None Detected', tone: 'good' }, { max: 9, label: 'Acceptable', tone: 'ok' }, { max: Infinity, label: 'DANGER', tone: 'bad' }] },
+    { id: 'voc', name: 'VOC Level', unit: 'mg/m³', placeholder: '0.2', required: true,
+      foot: 'Organic compound threshold',
+      bands: [{ max: 0.3, label: 'Excellent', tone: 'good' }, { max: 0.5, label: 'Acceptable', tone: 'ok' }, { max: Infinity, label: 'Elevated', tone: 'bad' }] }
   ],
 
   /* ---- Improvement catalog (Est. ROI and copy from the Figma catalog) ---- */
