@@ -62,6 +62,42 @@ window.DATA = {
   GLAZING_TYPES: ['Single Pane', 'Double Pane', 'Triple Pane', 'Double Pane (Low-E)'],
   WINDOW_CONDITIONS: ['Good', 'Fair', 'Poor'],
   FLOOR_PHOTO_TARGET: 12,
+  EXTERIOR_PHOTO_TARGET: 12,
+  SIDING_TYPES: ['Vinyl', 'Wood / Cedar', 'Fiber Cement', 'Aluminum / Steel', 'Brick / Masonry', 'Stucco', 'Composite', 'Other'],
+
+  /* ---- Mechanicals (hub section alongside Diagnostics and Zones) ---- */
+  MECHANICALS: [
+    { id: 'heating', name: 'Heating System', icon: 'flame', fields: [
+      { key: 'type', label: 'System Type', options: ['Gas Furnace', 'Gas Boiler', 'Heat Pump', 'Electric Baseboard', 'Oil Furnace', 'Wood / Pellet', 'Other'] },
+      { key: 'age', label: 'Age (Years)', type: 'number' },
+      { key: 'eff', label: 'Efficiency Rating', type: 'number', unit: '% AFUE' },
+      { key: 'condition', label: 'Condition', options: ['Good', 'Fair', 'Poor', 'End of Life'] }
+    ] },
+    { id: 'cooling', name: 'Cooling / HVAC', icon: 'air', fields: [
+      { key: 'type', label: 'System Type', options: ['Central AC', 'Heat Pump', 'Mini-Split', 'Window Units', 'None'] },
+      { key: 'age', label: 'Age (Years)', type: 'number' },
+      { key: 'seer', label: 'SEER Rating', type: 'number' },
+      { key: 'condition', label: 'Condition', options: ['Good', 'Fair', 'Poor', 'End of Life'] }
+    ] },
+    { id: 'waterheater', name: 'Water Heater', icon: 'heater', fields: [
+      { key: 'type', label: 'Type', options: ['Tank - Gas', 'Tank - Electric', 'Tankless', 'Heat Pump Water Heater', 'Indirect / Boiler'] },
+      { key: 'capacity', label: 'Capacity', type: 'number', unit: 'gal' },
+      { key: 'age', label: 'Age (Years)', type: 'number' },
+      { key: 'condition', label: 'Condition', options: ['Good', 'Fair', 'Poor', 'End of Life'] }
+    ] },
+    { id: 'electrical', name: 'Electrical Panel', icon: 'bolt', fields: [
+      { key: 'amperage', label: 'Panel Amperage', options: ['100A', '150A', '200A', '400A', 'Fuse Box / Other'] },
+      { key: 'space', label: 'Open Breaker Spaces?', options: ['Yes', 'No', 'Subpanel Present'] },
+      { key: 'notes', label: 'Brand / Notes', textarea: true }
+    ] },
+    { id: 'mechvent', name: 'Mechanical Ventilation', icon: 'fan', fields: [
+      { key: 'type', label: 'Equipment', options: ['ERV', 'HRV', 'Exhaust Fans Only', 'Whole-House Fan', 'None'] },
+      { key: 'condition', label: 'Condition', options: ['Good', 'Fair', 'Poor', 'Not Operational'] }
+    ] },
+    { id: 'othermech', name: 'Other', icon: 'box', fields: [
+      { key: 'desc', label: 'Description', textarea: true }
+    ] }
+  ],
 
   /* Crawlspace pricing rule from the Figma: heights below 36" trigger a
      restricted-mobility labor upcharge. */

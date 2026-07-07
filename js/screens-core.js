@@ -202,6 +202,16 @@
       moduleRow('#/eval/' + ev.id + '/caz', 'flame', 'Combustion Safety', ms.caz) +
       moduleRow('#/eval/' + ev.id + '/site', 'home', 'Site Overview', ms.site) +
 
+      UI.sectionHeading('Mechanicals', 'boiler') +
+      (function () {
+        var mech = ev.zones.mechanicals;
+        var count = mech ? Object.keys(mech.systems || {}).length : 0;
+        var st = mech && mech.complete ? 'complete' : count > 0 ? 'progress' : 'pending';
+        return moduleRow('#/eval/' + ev.id + '/mechanicals', 'boiler', 'Mechanical Systems', st,
+          '<span style="display:block;font:600 11px var(--font-body);color:var(--faint);margin-top:4px">' +
+          (count ? count + ' system' + (count > 1 ? 's' : '') + ' recorded' : 'Heating, HVAC, water heater, electrical panel') + '</span>');
+      })() +
+
       UI.sectionHeading('Zone Assessments', 'grid',
         '<span class="aux">' + ms.zonesDone + ' / ' + ms.zonesTotal + ' complete</span>') +
       zoneRows +

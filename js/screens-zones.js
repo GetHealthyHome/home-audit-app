@@ -122,6 +122,13 @@
         'Clearance, vapor barrier, insulation + 1 photo required');
   }
 
+  /* Ridge/gable/no-ventilation rows (mutually exclusive with "none"). */
+  function ventRow(kind, ic, title, sub, on) {
+    return '<div class="toggle-row"><span class="badge-ic" style="flex:none;width:34px;height:34px;border-radius:10px;background:var(--surface-2);display:inline-flex;align-items:center;justify-content:center">' + icon(ic) + '</span>' +
+      '<div class="tbody"><b>' + title + '</b><span>' + sub + '</span></div>' +
+      '<button class="check-tile ' + (on ? 'on' : '') + '" style="width:auto" data-action="attic-vent" data-vent="' + kind + '"><span class="box">' + icon('check') + '</span></button></div>';
+  }
+
   /* ---------------- Attic ---------------- */
   function attic(ev, z) {
     var zd = Store.zone(ev, z.id);
@@ -141,17 +148,30 @@
       '</div>' +
 
       '<div class="card">' + UI.sectionHeading('Ventilation', 'wind') +
-      '<div class="toggle-row"><span class="badge-ic" style="flex:none;width:34px;height:34px;border-radius:10px;background:var(--surface-2);display:inline-flex;align-items:center;justify-content:center">' + icon('home') + '</span>' +
-      '<div class="tbody"><b>Ridge Vents</b><span>Continuous exhaust at roof peak</span></div>' +
-      '<button class="check-tile ' + (f.ridgeVents ? 'on' : '') + '" style="width:auto" data-action="seg" data-bind="' + zbind(z.id, 'ridgeVents') + '" data-value="' + (f.ridgeVents ? '' : '1') + '"><span class="box">' + icon('check') + '</span></button></div>' +
-      '<div class="toggle-row"><span class="badge-ic" style="flex:none;width:34px;height:34px;border-radius:10px;background:var(--surface-2);display:inline-flex;align-items:center;justify-content:center">' + icon('grid') + '</span>' +
-      '<div class="tbody"><b>Gable Vents</b><span>Passive intake at gable ends</span></div>' +
-      '<button class="check-tile ' + (f.gableVents ? 'on' : '') + '" style="width:auto" data-action="seg" data-bind="' + zbind(z.id, 'gableVents') + '" data-value="' + (f.gableVents ? '' : '1') + '"><span class="box">' + icon('check') + '</span></button></div>' +
-      '<div class="insight"><b>Insight:</b> Airflow balance is critical to prevent moisture accumulation under the roof deck — pair intake and exhaust venting.</div>' +
+      ventRow('ridge', 'home', 'Ridge Vents', 'Continuous exhaust at roof peak', f.ridgeVents) +
+      ventRow('gable', 'grid', 'Gable Vents', 'Passive intake at gable ends', f.gableVents) +
+      ventRow('none', 'alert', 'No Ventilation', 'No intake or exhaust venting present', f.noVent) +
+      (f.noVent ?
+        '<div class="insight"><b>Insight:</b> An unvented attic traps moisture under the roof deck — flag ventilation as a recommended improvement.</div>' :
+        '<div class="insight"><b>Insight:</b> Airflow balance is critical to prevent moisture accumulation under the roof deck — pair intake and exhaust venting.</div>') +
       '</div>' +
 
-      '<div class="card">' + UI.sectionHeading('Attic Photos', 'camera') +
-      photoPair(ev, z.id, z.id + '-media', ['Attic Overview', 'Detail']) + '</div>' +
+      '<div class="card">' +
+      UI.sectionHeading('Attic Photos', 'camera',
+        '<span class="aux" style="color:var(--muted)">' +
+        ((ev.photos.some(function (p) { return p.slotKey === z.id + '-media-1'; }) ? 1 : 0) +
+          ev.photos.filter(function (p) { return p.zone === z.id && p.tag === 'attic-extra'; }).length) + ' captured</span>') +
+      '<div class="field"><label>Required: Attic Overview</label>' +
+      UI.photoSlot(ev, { key: z.id + '-media-1', zone: z.id, label: 'Attic Overview', required: true }) + '</div>' +
+      '<div class="photo-grid">' +
+      ev.photos.filter(function (p) { return p.zone === z.id && p.tag === 'attic-extra'; }).map(function (p) {
+        var url = Store.photoUrl(p.id);
+        return url ? '<div class="photo-slot filled"><img src="' + url + '" alt="Attic detail">' +
+          '<button class="retake" data-action="photo-remove" data-photo="' + p.id + '">' + icon('trash') + '</button></div>' : '';
+      }).join('') +
+      '<button class="photo-slot" data-action="photo-capture" data-slot-key="" data-zone="' + z.id + '" data-label="Attic Detail" data-tag="attic-extra">' +
+      '<span class="cam">' + icon('camera') + '</span><span>Add Photo</span></button>' +
+      '</div></div>' +
 
       finalizeDock(ev, z,
         !!(f.insulationType && f.depth && ev.photos.some(function (p) { return p.slotKey === z.id + '-media-1'; })),
@@ -218,18 +238,39 @@
       '</div></div>' +
 
       '<div class="card">' + UI.sectionHeading('Envelope Condition', 'home') +
+      UI.field({ label: 'Siding Type', bind: zbind(z.id, 'sidingType'), options: DATA.SIDING_TYPES, value: f.sidingType }) +
       UI.field({ label: 'Siding Condition', bind: zbind(z.id, 'siding'), options: ['Good', 'Fair', 'Poor'], value: f.siding }) +
       UI.field({ label: 'Grading & Drainage', bind: zbind(z.id, 'drainage'), options: ['Slopes away (good)', 'Flat', 'Slopes toward foundation'], value: f.drainage }) +
       UI.field({ label: 'Wall Construction', bind: zbind(z.id, 'walls'), options: ['2x4 Frame', '2x6 Frame', 'Masonry', 'Unknown'], value: f.walls }) +
       '</div>' +
 
-      '<div class="card">' + UI.sectionHeading('Exterior Photos', 'camera') +
-      '<div class="photo-grid">' +
-      UI.photoSlot(ev, { key: z.id + '-front', zone: z.id, label: 'Front Elevation', required: true }) +
-      UI.photoSlot(ev, { key: z.id + '-rear', zone: z.id, label: 'Rear Elevation', required: false }) +
-      UI.photoSlot(ev, { key: z.id + '-left', zone: z.id, label: 'Left Side', required: false }) +
-      UI.photoSlot(ev, { key: z.id + '-right', zone: z.id, label: 'Right Side', required: false }) +
-      '</div></div>' +
+      (function () {
+        var extras = ev.photos.filter(function (p) { return p.zone === z.id && p.tag === 'ext-extra'; });
+        var named = ['front', 'rear', 'left', 'right'].filter(function (k) {
+          return ev.photos.some(function (p) { return p.slotKey === z.id + '-' + k; });
+        }).length;
+        var total = named + extras.length;
+        var atCap = total >= DATA.EXTERIOR_PHOTO_TARGET;
+        return '<div class="card">' +
+          UI.sectionHeading('Exterior Photos', 'camera',
+            '<span class="aux" style="color:var(--muted)">' + total + ' / ' + DATA.EXTERIOR_PHOTO_TARGET + '</span>') +
+          '<div class="photo-grid">' +
+          UI.photoSlot(ev, { key: z.id + '-front', zone: z.id, label: 'Front Elevation', required: true }) +
+          UI.photoSlot(ev, { key: z.id + '-rear', zone: z.id, label: 'Rear Elevation', required: false }) +
+          UI.photoSlot(ev, { key: z.id + '-left', zone: z.id, label: 'Left Side', required: false }) +
+          UI.photoSlot(ev, { key: z.id + '-right', zone: z.id, label: 'Right Side', required: false }) +
+          extras.map(function (p) {
+            var url = Store.photoUrl(p.id);
+            return url ? '<div class="photo-slot filled"><img src="' + url + '" alt="Exterior detail">' +
+              '<button class="retake" data-action="photo-remove" data-photo="' + p.id + '">' + icon('trash') + '</button></div>' : '';
+          }).join('') +
+          (atCap ? '' :
+            '<button class="photo-slot" data-action="photo-capture" data-slot-key="" data-zone="' + z.id + '" data-label="Exterior Detail" data-tag="ext-extra">' +
+            '<span class="cam">' + icon('camera') + '</span><span>Add Photo</span></button>') +
+          '</div>' +
+          (atCap ? '<p class="hint" style="margin:10px 0 0">Photo limit reached (' + DATA.EXTERIOR_PHOTO_TARGET + '). Remove one to add another.</p>' : '') +
+          '</div>';
+      })() +
 
       finalizeDock(ev, z,
         !!(f.vehicle && ev.photos.some(function (p) { return p.slotKey === z.id + '-parking'; }) &&
@@ -302,6 +343,76 @@
   var RENDERERS = {
     basement: basement, crawlspace: crawlspace, attic: attic,
     garage: garage, exterior: exterior, floor1: floor, floor2: floor, floor3: floor
+  };
+
+  /* ---------------- Mechanicals (hub section of its own) ---------------- */
+  window.ScreenMechanicals = function (ev) {
+    var zd = Store.zone(ev, 'mechanicals');
+    var sys = zd.systems;
+
+    var inventory = '<div class="card">' +
+      UI.sectionHeading('Systems Inventory', 'boiler') +
+      '<p class="hint">Check every system present in the home, then complete a data card for each.</p>' +
+      '<div class="check-grid">' +
+      DATA.MECHANICALS.map(function (s) {
+        var on = !!sys[s.id];
+        return '<button class="check-tile ' + (on ? 'on' : '') + '" data-action="sys-toggle" data-zone="mechanicals" data-sys="' + s.id + '">' +
+          '<span class="box">' + icon('check') + '</span>' + esc(s.name) + '</button>';
+      }).join('') + '</div></div>';
+
+    var idx = 0;
+    var cards = DATA.MECHANICALS.filter(function (s) { return sys[s.id]; }).map(function (s) {
+      idx++;
+      var b = 'zones.mechanicals.systems.' + s.id;
+      var d = sys[s.id] === true ? (sys[s.id] = {}) : sys[s.id];
+      return '<div class="card">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">' +
+        '<span class="badge-ic" style="width:30px;height:30px;border-radius:999px;background:var(--green-soft);color:var(--green);display:inline-flex;align-items:center;justify-content:center;font:800 14px var(--font-body)">' + idx + '</span>' +
+        '<h3 style="margin:0">' + esc(s.name) + '</h3></div>' +
+        s.fields.map(function (fld) {
+          return UI.field({
+            label: fld.label, bind: b + '.' + fld.key,
+            type: fld.type, inputmode: fld.type === 'number' ? 'numeric' : undefined,
+            options: fld.options, textarea: fld.textarea, unit: fld.unit,
+            value: d[fld.key]
+          });
+        }).join('') +
+        '<div class="field"><label>Required: Primary Photo</label>' +
+        UI.photoSlot(ev, { key: 'mech-' + s.id + '-primary', zone: 'mechanicals', label: s.name + ' Primary', required: true }) + '</div>' +
+        '<div class="photo-grid">' +
+        UI.photoSlot(ev, { key: 'mech-' + s.id + '-d1', zone: 'mechanicals', label: 'Optional: Detail 1', required: false }) +
+        UI.photoSlot(ev, { key: 'mech-' + s.id + '-d2', zone: 'mechanicals', label: 'Optional: Detail 2', required: false }) +
+        '</div></div>';
+    }).join('');
+
+    var checkedIds = DATA.MECHANICALS.filter(function (s) { return sys[s.id]; }).map(function (s) { return s.id; });
+    var photosOk = checkedIds.every(function (id) {
+      return ev.photos.some(function (p) { return p.slotKey === 'mech-' + id + '-primary'; });
+    });
+    var ready = checkedIds.length > 0 && photosOk;
+
+    var dock;
+    if (zd.complete) {
+      dock = '<div class="cta-dock"><button class="btn secondary" data-action="zone-reopen" data-zone="mechanicals">Reopen Section</button></div>';
+    } else {
+      dock = '<div class="cta-dock">' +
+        (!ready ? '<div style="text-align:center;margin-bottom:10px"><span class="photo-missing">' + icon('alert') + ' ' +
+          esc(checkedIds.length === 0 ? 'Select at least one system' : 'Primary photos required for each system') + '</span></div>' : '') +
+        '<button class="btn primary" data-action="zone-finalize" data-zone="mechanicals" ' + (ready ? '' : 'disabled') + '>Finalize Mechanicals</button>' +
+        '<div style="height:8px"></div>' +
+        '<button class="btn ghost" data-action="nav" data-route="#/eval/' + ev.id + '/hub">Save Draft</button>' +
+        '</div>';
+    }
+
+    return UI.subbar('Mechanicals', '#/eval/' + ev.id + '/hub') +
+      '<div class="screen">' +
+      '<span class="eyebrow">' + icon('boiler') + ' Mechanical Systems</span>' +
+      '<h1 class="screen-title">Mechanicals</h1>' +
+      '<p class="screen-sub">Heating, cooling, water heating, electrical service, and ventilation equipment — the systems the improvement plan will work around.</p>' +
+      (zd.complete ? UI.pill('complete', 'Section Complete ✓') : UI.pill('progress', 'In Progress', true)) +
+      '<div style="height:8px"></div>' +
+      inventory + cards + dock +
+      '</div>';
   };
 
   window.ScreenZone = function (ev, zoneId) {

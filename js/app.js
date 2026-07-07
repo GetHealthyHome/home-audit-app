@@ -37,6 +37,7 @@
         case 'hub': html = ScreenHub(ev); break;
         case 'site': html = ScreenSite(ev); break;
         case 'zone': html = ScreenZone(ev, parts[3]); break;
+        case 'mechanicals': html = ScreenMechanicals(ev); break;
         case 'blower': html = ScreenBlower(ev); break;
         case 'caz': html = ScreenCaz(ev); break;
         case 'iaq': html = ScreenIaq(ev); startIaqTick(ev); break;
@@ -213,6 +214,19 @@
         var v = el.getAttribute('data-value');
         if (t.transient) { NewEvalDraft[t.path] = v; } else { Store.set(t.obj, t.path, v); }
         rerender();
+      },
+      'attic-vent': function () {
+        var f = Store.zone(ev, 'attic').fields;
+        var kind = el.getAttribute('data-vent');
+        if (kind === 'none') {
+          f.noVent = !f.noVent;
+          if (f.noVent) { f.ridgeVents = ''; f.gableVents = ''; }
+        } else {
+          var key = kind === 'ridge' ? 'ridgeVents' : 'gableVents';
+          f[key] = f[key] ? '' : '1';
+          if (f[key]) f.noVent = false;
+        }
+        Store.save(); rerender();
       },
       'sys-toggle': function () {
         var zd = Store.zone(ev, el.getAttribute('data-zone'));
@@ -493,6 +507,31 @@
     };
     if (actions[action]) actions[action]();
   });
+
+  /* IAQ completion alarm — runs globally so the auditor is alerted even
+     while working in another zone. Fires once per test run; stale
+     completions (app reopened much later) flip to results silently. */
+  function checkIaqAlarms() {
+    var total = DATA.IAQ_MINUTES * 60 * 1000;
+    var fired = false;
+    Object.keys(Store.state.evaluations).forEach(function (id) {
+      var ev = Store.state.evaluations[id];
+      var t = ev.tests && ev.tests.iaq;
+      if (!t || !t.startedAt || t.finishedAt || t.alerted) return;
+      var over = Date.now() - t.startedAt - total;
+      if (over < 0) return;
+      t.alerted = true;
+      fired = true;
+      if (over < 15 * 60 * 1000) {
+        UI.alertAuditor('IAQ sampling complete — ready for results entry.');
+      }
+    });
+    if (fired) {
+      Store.save();
+      if (location.hash.indexOf('/iaq') >= 0) rerender();
+    }
+  }
+  setInterval(checkIaqAlarms, 3000);
 
   /* Auto-retry pending syncs when connectivity returns. */
   window.addEventListener('online', function () {
