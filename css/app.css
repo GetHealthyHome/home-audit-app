@@ -619,6 +619,46 @@ select.input {
   @page { margin: 16mm; }
 }
 
+/* ---------- Desktop layout ----------
+   On wide screens the bottom tab bar becomes a left navigation rail, the
+   content column widens, and grids use the extra room. Pure CSS — the same
+   markup serves phone and desktop. */
+@media (min-width: 940px) {
+  :root { --tabbar-h: 0px; }
+
+  .tabbar {
+    top: 0; bottom: 0; right: auto; width: 232px; max-width: none;
+    flex-direction: column; justify-content: flex-start; align-items: stretch;
+    height: auto; padding: 86px 14px 22px; gap: 4px;
+    border-top: none; border-right: 1px solid var(--border);
+  }
+  .tabbar a {
+    flex: 0 0 auto; flex-direction: row; justify-content: flex-start; gap: 12px;
+    font-size: 14px; padding: 12px 14px; border-radius: 12px;
+  }
+  .tabbar a .tic { font-size: 20px; }
+  .tabbar a.on { background: var(--green-soft); }
+  .tabbar a.fab-slot { order: 99; margin-top: 14px; flex: 0 0 auto; }
+  .tabbar .fab {
+    width: 100%; height: 48px; border-radius: 12px; margin-top: 0; border: none;
+    box-shadow: 0 4px 14px rgba(57,103,0,0.25); gap: 10px; font-size: 18px;
+  }
+  .tabbar .fab::after { content: 'New Evaluation'; font: 700 13.5px var(--font-body); }
+
+  #app { max-width: none; margin: 0; padding-left: 232px; padding-bottom: 48px; }
+  .appbar { padding-left: 36px; padding-right: 36px; }
+  .screen { max-width: 800px; margin: 0 auto; padding: 30px 36px 28px; }
+  .screen.pdoc { max-width: 940px; }
+  .cta-dock, .review-dock, .selection-dock { bottom: 14px; }
+
+  .stat-cards { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .photo-grid { grid-template-columns: repeat(4, 1fr); }
+  .media-grid { grid-template-columns: repeat(4, 1fr); }
+  .pdoc .pd-gallery { grid-template-columns: repeat(3, 1fr); }
+  .pdoc .pd-page { padding: 44px 52px; }
+  .tpl-editor { min-height: 520px; font-size: 13px; }
+}
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%) translateY(16px);
@@ -638,7 +678,7 @@ select.input {
 /* ---------- Print (proposal PDF) ---------- */
 @media print {
   .tabbar, .appbar, .cta-dock, .toast, .no-print { display: none !important; }
-  #app { padding-bottom: 0; max-width: none; }
+  #app { padding-bottom: 0; max-width: none; padding-left: 0; }
   body { background: #fff; }
   .card, .measure-card, .result-card { break-inside: avoid; }
 }

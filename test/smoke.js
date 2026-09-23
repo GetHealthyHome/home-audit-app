@@ -37,6 +37,29 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
     });
   });
 
+  // --- Role gating: backend configured => admin features need the admin role ---
+  await page.goto(APP + '#/admin');
+  await page.waitForTimeout(400);
+  assert((await body()).includes('Admin access required'), 'admin portal locked when signed out');
+  await page.goto(APP + '#/template');
+  await page.waitForTimeout(300);
+  assert((await body()).includes('Admin access required'), 'template editor locked when signed out');
+  await page.evaluate(() => {
+    Store.state.session = { access_token: 'test-token', refresh_token: '', expires_at: Math.floor(Date.now() / 1000) + 86400,
+      user: { id: 'u-test', email: 'crew@test.dev', name: 'Test Crew', role: 'auditor' } };
+    Store.save(); window.rerender();
+  });
+  await page.waitForTimeout(300);
+  assert((await body()).includes('Admin access required'), 'admin features locked for auditor role');
+  await page.evaluate(() => { Store.state.session.user.role = 'admin'; Store.save(); window.rerender(); });
+  await page.waitForTimeout(300);
+  assert(!(await body()).includes('Admin access required'), 'admin features unlock for admin role');
+  await page.goto(APP + '#/admin/crew');
+  await page.waitForTimeout(700);
+  assert((await body()).includes('Add Crew Member'), 'crew accounts screen renders for admin');
+  await page.goto(APP + '#/dashboard');
+  await page.waitForTimeout(400);
+
   // --- Template engine unit checks ---
   const tpl = await page.evaluate(() => {
     const out = {};
@@ -454,11 +477,40 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   assert(roundtrip.cleared, 'clearing config falls back to defaults');
   assert(roundtrip.n === 9 && roundtrip.cost === 2500 && roundtrip.rules === 1, 'export/import round-trips the full config');
 
+  // --- Desktop layout: tab bar becomes a left rail, content widens ---
+  const desk = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  await desk.goto(APP);
+  await desk.waitForTimeout(700);
+  const dm = await desk.evaluate(() => {
+    const r = document.getElementById('tabbar').getBoundingClientRect();
+    const s = document.querySelector('.screen').getBoundingClientRect();
+    return { railLeft: r.left, railW: Math.round(r.width), vertical: r.height > r.width,
+      screenLeft: s.left, screenW: Math.round(s.width),
+      scrollW: document.documentElement.scrollWidth, innerW: window.innerWidth };
+  });
+  assert(dm.vertical && dm.railLeft === 0 && dm.railW < 300, 'tab bar becomes a left rail on desktop (' + dm.railW + 'px)');
+  assert(dm.screenLeft > 232, 'content column sits beside the rail');
+  assert(dm.screenW <= 810, 'content column capped for readability (' + dm.screenW + 'px)');
+  assert(dm.scrollW <= dm.innerW, 'no horizontal overflow on desktop');
+  const fabLabel = await desk.evaluate(() =>
+    getComputedStyle(document.querySelector('.tabbar .fab'), '::after').content);
+  assert(fabLabel.includes('New Evaluation'), 'desktop rail labels the new-evaluation action');
+  await desk.click('[data-action="dash-view"][data-view="cal"]');
+  await desk.waitForTimeout(400);
+  const dcal = await desk.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+  assert(dcal, 'calendar fits the desktop frame');
+  await desk.screenshot({ path: SHOT_DIR + '/09-desktop-dashboard.png' });
+  await desk.goto(APP + '#/admin');
+  await desk.waitForTimeout(500);
+  await desk.screenshot({ path: SHOT_DIR + '/10-desktop-admin.png' });
+  await desk.close();
+
   // Settings entry point
   await page.goto(APP + '#/settings');
   await page.waitForTimeout(400);
   assert((await body()).includes('Edit Proposal Template'), 'settings links to the template editor');
   assert((await body()).includes('Open Admin Portal'), 'settings links to the admin portal');
+  assert((await body()).includes('Change Password'), 'settings offers self-service password change');
 
   if (errors.length) throw new Error('Console/page errors:\n' + errors.join('\n'));
   console.log('\nALL SMOKE TESTS PASSED');

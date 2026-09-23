@@ -338,8 +338,12 @@
 
       '<div class="card"><h3>Crew Account</h3>' +
       (sess
-        ? '<div style="display:flex;gap:8px;margin-bottom:10px">' + UI.pill('complete', 'Signed In') + '</div>' +
+        ? '<div style="display:flex;gap:8px;margin-bottom:10px">' + UI.pill('complete', 'Signed In') +
+          (Backend.ready() ? UI.pill(Auth.role() === 'admin' ? 'magenta' : 'progress', Auth.role() === 'admin' ? 'Admin' : 'Auditor') : '') + '</div>' +
           '<p class="hint">Signed in as <b>' + UI.esc(sess.user.name) + '</b> (' + UI.esc(sess.user.email) + '). Cloud sync is unlocked for this device.</p>' +
+          UI.field({ label: 'New Password', bind: 'login.newPassword', type: 'password', placeholder: 'At least 8 characters', value: '' }) +
+          '<button class="btn secondary" data-action="auth-change-pass">Change Password</button>' +
+          '<div style="height:8px"></div>' +
           '<button class="btn secondary" data-action="auth-logout">Sign Out</button>'
         : '<div style="display:flex;gap:8px;margin-bottom:10px">' + UI.pill('warn', 'Signed Out') + '</div>' +
           '<p class="hint">Audits stay on this device until a crew member signs in — cloud sync and Housecall Pro import require an account.</p>' +
@@ -352,15 +356,21 @@
       '</div>' +
 
       '<div class="card"><h3>Admin Portal</h3>' +
-      '<p class="hint">Company configuration: the improvement catalog, audit-driven pricing rules, audit prompts, and the proposal template. Export the config to share it with crew devices.</p>' +
-      '<button class="btn secondary" data-action="nav" data-route="#/admin">' + icon('shield') + ' Open Admin Portal</button>' +
+      (Auth.isAdmin()
+        ? '<p class="hint">Company configuration: crew accounts, the improvement catalog, audit-driven pricing rules, audit prompts, and the proposal template. Export the config to share it with crew devices.</p>' +
+          '<button class="btn secondary" data-action="nav" data-route="#/admin">' + icon('shield') + ' Open Admin Portal</button>'
+        : '<p class="hint">' + icon('lock') + ' Admin-only. ' +
+          (sess ? 'You are signed in as an auditor — ask a company admin for the admin role.'
+                : 'Sign in with an admin account to configure the catalog, pricing and prompts.') + '</p>') +
       '</div>' +
 
       '<div class="card"><h3>Proposal Template</h3>' +
       '<p class="hint">Customer proposals are generated from an editable HTML template — adjust the layout, wording and branding to match your current design.</p>' +
       '<div style="display:flex;gap:8px;margin-bottom:10px">' +
       UI.pill(Store.state.proposalTemplate ? 'progress' : 'complete', Store.state.proposalTemplate ? 'Customized' : 'Default design') + '</div>' +
-      '<button class="btn secondary" data-action="nav" data-route="#/template">' + icon('edit') + ' Edit Proposal Template</button>' +
+      (Auth.isAdmin()
+        ? '<button class="btn secondary" data-action="nav" data-route="#/template">' + icon('edit') + ' Edit Proposal Template</button>'
+        : '<p class="hint">' + icon('lock') + ' Template editing is admin-only.</p>') +
       '</div>' +
 
       '<div class="card"><h3>Cloud Sync</h3>' +
