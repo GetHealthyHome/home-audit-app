@@ -18,7 +18,7 @@
   }
 
   function measureById(id) {
-    return DATA.CATALOG.filter(function (m) { return m.id === id; })[0];
+    return Store.measure(id);
   }
 
   function impactPill(impact) {
@@ -37,12 +37,12 @@
   window.ScreenCatalog = function (ev, filterCat) {
     filterCat = filterCat || 'All Measures';
     var groups = {};
-    DATA.CATALOG.forEach(function (m) {
+    Store.catalog().forEach(function (m) {
       if (filterCat !== 'All Measures' && m.cat !== filterCat) return;
       (groups[m.cat] = groups[m.cat] || []).push(m);
     });
 
-    var chips = '<div class="filter-chips">' + DATA.CATALOG_CATS.map(function (c) {
+    var chips = '<div class="filter-chips">' + Store.catalogCats().map(function (c) {
       return '<button class="chip ' + (c === filterCat ? 'on' : '') + '" data-action="catalog-filter" data-cat="' + esc(c) + '">' + esc(c) + '</button>';
     }).join('') + '</div>';
 
@@ -79,13 +79,24 @@
     }
     var mid = measureId && ev.selections.indexOf(measureId) >= 0 ? measureId : ev.selections[0];
     var m = measureById(mid);
+    if (!m) {
+      var valid = ev.selections.filter(measureById);
+      if (!valid.length) {
+        return UI.subbar('Builder', '#/eval/' + ev.id + '/catalog') +
+          '<div class="screen">' + flowTabs(ev, 'builder') +
+          '<div class="empty">' + icon('layers') + '<b>Selected measures no longer exist</b><p>They were removed from the catalog. Pick current measures from the Catalog.</p></div></div>';
+      }
+      mid = valid[0]; m = measureById(mid);
+    }
+    var fi = Store.financials(ev, [mid]).items[0];
     var rec = ev.recs[mid] || {};
-    var cost = rec.cost != null && rec.cost !== '' ? rec.cost : m.cost;
-    var savings = rec.savings != null && rec.savings !== '' ? rec.savings : m.savings;
+    var cost = fi.cost;
+    var savings = fi.savings;
     var payback = savings > 0 ? Math.round((cost / savings) * 10) / 10 : null;
 
     var picker = '<div class="filter-chips">' + ev.selections.map(function (id) {
       var mm = measureById(id);
+      if (!mm) return '';
       return '<button class="chip ' + (id === mid ? 'on' : '') + '" data-action="builder-pick" data-mid="' + id + '">' + esc(mm.name) + '</button>';
     }).join('') + '</div>';
 
@@ -100,7 +111,17 @@
       picker +
 
       '<div class="card">' + UI.sectionHeading('Financial Estimates', 'calc') +
-      UI.field({ label: 'Estimated Cost ($)', bind: 'recs.' + mid + '.cost', type: 'number', inputmode: 'decimal', placeholder: String(m.cost), value: rec.cost }) +
+      (fi.adjustments.length ?
+        '<div class="insight" style="margin-top:0"><b>' + icon('calc') + ' Auto-pricing from audit data</b><br>' +
+        'Base ' + UI.money(fi.base) +
+        fi.adjustments.map(function (a) {
+          return ' &nbsp;' + (a.amount < 0 ? '− ' + UI.money(-a.amount) : '+ ' + UI.money(a.amount)) +
+            ' <span style="color:var(--muted)">(' + esc(a.label) + ')</span>';
+        }).join('') +
+        ' &nbsp;→ <b>' + UI.money(fi.autoCost) + '</b>' +
+        (rec.cost != null && rec.cost !== '' ? '<br><span style="color:var(--muted)">Overridden by the manual cost below.</span>' : '') +
+        '</div>' : '') +
+      UI.field({ label: 'Estimated Cost ($)', bind: 'recs.' + mid + '.cost', type: 'number', inputmode: 'decimal', placeholder: String(fi.autoCost), value: rec.cost }) +
       UI.field({ label: 'Annual Savings ($)', bind: 'recs.' + mid + '.savings', type: 'number', inputmode: 'decimal', placeholder: String(m.savings), value: rec.savings }) +
       UI.field({ label: 'Contractor Notes & Scope', bind: 'recs.' + mid + '.notes', textarea: true, placeholder: 'Specify materials, R-targets (e.g. Blown cellulose to R-60), and access notes…', value: rec.notes }) +
       '</div>' +
@@ -113,7 +134,7 @@
       '<div class="science-block"><h3>Science Context</h3>' +
       '<p>' + science(m.science) + '</p>' +
       '<div class="benefit-list"><b class="blt">Benefit Summary</b>' +
-      m.benefits.map(function (b) {
+      Store.measureBenefits(m).map(function (b) {
         return '<div class="brow"><span class="ok">' + icon('check') + '</span>' + esc(b) + '</div>';
       }).join('') + '</div></div>' +
 

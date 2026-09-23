@@ -250,6 +250,47 @@
     },
 
     /* ---------- Derived values ---------- */
+    /* ---- Admin-configurable content (overlays DATA defaults) ---- */
+    catalog: function () {
+      return (state.admin && state.admin.catalog) || DATA.CATALOG;
+    },
+    measure: function (id) {
+      return Store.catalog().filter(function (m) { return m.id === id; })[0];
+    },
+    catalogCats: function () {
+      var cats = [];
+      Store.catalog().forEach(function (m) {
+        if (m.cat && cats.indexOf(m.cat) < 0) cats.push(m.cat);
+      });
+      return ['All Measures'].concat(cats);
+    },
+    /* Benefits may be a shipped array or an admin-edited one-per-line string. */
+    measureBenefits: function (m) {
+      if (Array.isArray(m.benefits)) return m.benefits;
+      return String(m.benefits || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+    },
+    /* prompts('motivations' | 'heatTypes') -> array of strings;
+       prompts('blowerChecklist' | 'cazTests') -> array of {id, name, desc}. */
+    prompts: function (key) {
+      var p = state.admin && state.admin.prompts;
+      if (key === 'motivations') {
+        return p && p.motivations != null
+          ? String(p.motivations).split('\n').map(function (s) { return s.trim(); }).filter(Boolean)
+          : DATA.MOTIVATIONS;
+      }
+      if (key === 'heatTypes') {
+        return p && p.heatTypes != null
+          ? String(p.heatTypes).split('\n').map(function (s) { return s.trim(); }).filter(Boolean)
+          : DATA.HEAT_TYPES;
+      }
+      if (key === 'blowerChecklist') return (p && p.blowerChecklist) || DATA.BLOWER_CHECKLIST;
+      if (key === 'cazTests') return (p && p.cazTests) || DATA.CAZ_TESTS;
+      return null;
+    },
+    pricingRules: function () {
+      return (state.admin && state.admin.pricingRules) || [];
+    },
+
     ashrae: function (ev) {
       var sqft = parseFloat(ev.site.sqft) || 0;
       var beds = parseInt(ev.site.bedrooms, 10);
@@ -288,17 +329,18 @@
     /* Module statuses drive the Assessment Hub. */
     moduleStatus: function (ev) {
       var blower = ev.tests.blower;
-      var checklistDone = DATA.BLOWER_CHECKLIST.every(function (c) { return blower.checklist[c.id]; });
+      var checklistDone = Store.prompts('blowerChecklist').every(function (c) { return blower.checklist[c.id]; });
       var blowerPhotosDone = DATA.BLOWER_PHOTOS.filter(function (p) { return p.required; })
         .every(function (p) { return blower.photos[p.id]; });
       var blowerStatus = (blower.cfm50 && checklistDone && blowerPhotosDone) ? 'complete'
         : (blower.cfm50 || Object.keys(blower.checklist).some(function (k) { return blower.checklist[k]; })) ? 'progress' : 'pending';
 
       var caz = ev.tests.caz;
-      var cazRecorded = DATA.CAZ_TESTS.filter(function (t) { return caz.tests[t.id] && caz.tests[t.id].result; });
+      var cazTests = Store.prompts('cazTests');
+      var cazRecorded = cazTests.filter(function (t) { return caz.tests[t.id] && caz.tests[t.id].result; });
       var cazFailed = cazRecorded.some(function (t) { return caz.tests[t.id].result === 'FAIL'; });
       var cazStatus = cazFailed ? 'action'
-        : cazRecorded.length === DATA.CAZ_TESTS.length ? 'complete'
+        : cazRecorded.length === cazTests.length ? 'complete'
         : cazRecorded.length > 0 ? 'progress' : 'pending';
 
       var iaq = ev.tests.iaq;
@@ -320,17 +362,31 @@
     },
 
     /* onlyIds (optional) restricts the plan to those measure ids — used by
-       the proposal doc, where the assessor can uncheck measures. */
+       the proposal doc, where the assessor can uncheck measures.
+       Each item's cost = admin base cost + matching pricing-rule
+       adjustments; a manual cost entered in the Builder overrides both. */
     financials: function (ev, onlyIds) {
       var ids = onlyIds ? ev.selections.filter(function (id) { return onlyIds.indexOf(id) >= 0; }) : ev.selections;
+      var rules = Store.pricingRules();
       var items = ids.map(function (id) {
-        var m = DATA.CATALOG.filter(function (c) { return c.id === id; })[0];
+        var m = Store.measure(id);
         if (!m) return null;
         var r = ev.recs[id] || {};
+        var base = parseFloat(m.cost) || 0;
+        var adjustments = rules.filter(function (rule) {
+          return Admin.ruleMatches(rule, ev, id) && (parseFloat(rule.amount) || 0) !== 0;
+        }).map(function (rule) {
+          return { label: rule.label || Admin.fieldLabel(rule.field), amount: Admin.ruleAmount(rule, ev, base) };
+        });
+        var auto = base + adjustments.reduce(function (s, a) { return s + a.amount; }, 0);
+        var manual = r.cost != null && r.cost !== '' ? parseFloat(r.cost) : NaN;
         return {
           measure: m,
-          cost: parseFloat(r.cost) || m.cost,
-          savings: parseFloat(r.savings) || m.savings,
+          base: base,
+          adjustments: adjustments,
+          autoCost: auto,
+          cost: isNaN(manual) ? auto : manual,
+          savings: parseFloat(r.savings) || parseFloat(m.savings) || 0,
           notes: r.notes || ''
         };
       }).filter(Boolean);

@@ -255,10 +255,210 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   await page.waitForTimeout(500);
   assert((await body()).includes('Home Performance Proposal'), 'default design renders again after reset');
 
+  // --- Admin portal ---
+  await page.goto(APP + '#/admin');
+  await page.waitForTimeout(400);
+  txt = await body();
+  assert(txt.includes('Admin Portal') && txt.includes('Improvement Catalog') && txt.includes('Pricing Rules') && txt.includes('Audit Prompts'), 'admin hub renders all sections');
+  await shot('06-admin-hub');
+
+  // Catalog manager: edit a measure's base cost
+  await page.click('[data-action="nav"][data-route="#/admin/catalog"]');
+  await page.waitForTimeout(400);
+  assert(await page.locator('[data-route^="#/admin/measure/"]').count() === 8, 'catalog manager lists the 8 default measures');
+  await page.goto(APP + '#/admin/measure/cellulose');
+  await page.waitForTimeout(400);
+  await page.fill('input[data-bind="admin.catalog.0.cost"]', '2500');
+  await page.waitForTimeout(800);
+  const editedCost = await page.evaluate(() => parseFloat(Store.measure('cellulose').cost));
+  assert(editedCost === 2500, 'measure base cost edited via admin (2500)');
+  const planAfterEdit = await page.evaluate(() => Store.financials(Store.activeEval()).cost);
+  assert(planAfterEdit === 2500 + 1450 + 380, 'plan total reflects edited base cost (' + planAfterEdit + ')');
+
+  // Add a brand-new measure and use it in the audit
+  await page.goto(APP + '#/admin/catalog');
+  await page.waitForTimeout(300);
+  await page.click('[data-action="admin-measure-add"]');
+  await page.waitForTimeout(400);
+  const newIdx = await page.evaluate(() => Store.state.admin.catalog.length - 1);
+  await page.fill('input[data-bind="admin.catalog.' + newIdx + '.name"]', 'Duct Sealing');
+  await page.fill('input[data-bind="admin.catalog.' + newIdx + '.cat"]', 'HVAC Systems');
+  await page.fill('input[data-bind="admin.catalog.' + newIdx + '.cost"]', '900');
+  await page.fill('input[data-bind="admin.catalog.' + newIdx + '.savings"]', '120');
+  await page.fill('textarea[data-bind="admin.catalog.' + newIdx + '.benefits"]', 'Benefit Alpha\nBenefit Beta');
+  await page.waitForTimeout(800);
+  const newId = await page.evaluate(i => Store.state.admin.catalog[i].id, newIdx);
+  await page.goto(APP + '#/admin/catalog');
+  await page.waitForTimeout(300);
+  assert((await body()).includes('Duct Sealing'), 'new measure appears in catalog manager');
+  const evId = await page.evaluate(() => Store.activeEval().id);
+  await page.goto(APP + '#/eval/' + evId + '/catalog');
+  await page.waitForTimeout(400);
+  assert((await body()).includes('Duct Sealing'), 'new measure appears in the audit catalog');
+  await page.click('[data-action="catalog-toggle"][data-mid="' + newId + '"]');
+  await page.waitForTimeout(300);
+  const planWithNew = await page.evaluate(() => Store.financials(Store.activeEval()).cost);
+  assert(planWithNew === 4330 + 900, 'custom measure priced into the plan (' + planWithNew + ')');
+
+  // Custom-measure benefits render in the Builder (string -> lines)
+  await page.goto(APP + '#/eval/' + evId + '/builder');
+  await page.waitForTimeout(300);
+  await page.click('[data-action="builder-pick"][data-mid="' + newId + '"]');
+  await page.waitForTimeout(300);
+  txt = await body();
+  assert(txt.includes('Benefit Alpha') && txt.includes('Benefit Beta'), 'admin-entered benefits render one per line');
+
+  // Pricing rule via the UI: sqft > 2000 -> +$500 on cellulose
+  await page.goto(APP + '#/admin/pricing');
+  await page.waitForTimeout(300);
+  await page.click('[data-action="admin-rule-add"]');
+  await page.waitForTimeout(400);
+  await page.selectOption('select[data-bind="admin.pricingRules.0.measureId"]', 'cellulose');
+  await page.waitForTimeout(300);
+  await page.selectOption('select[data-bind="admin.pricingRules.0.field"]', 'site.sqft');
+  await page.waitForTimeout(300);
+  await page.selectOption('select[data-bind="admin.pricingRules.0.op"]', 'gt');
+  await page.waitForTimeout(300);
+  await page.fill('input[data-bind="admin.pricingRules.0.value"]', '2000');
+  await page.fill('input[data-bind="admin.pricingRules.0.amount"]', '500');
+  await page.fill('input[data-bind="admin.pricingRules.0.label"]', 'Large home surcharge');
+  await page.waitForTimeout(900);
+  txt = await body();
+  assert(txt.includes('Site: Square Footage is greater than'), 'rule editor describes the condition');
+  assert(txt.includes('condition matches') && txt.includes('$500'), 'rule live-tests against the open audit');
+  await shot('07-admin-rule');
+  const withRule = await page.evaluate(() => {
+    const fin = Store.financials(Store.activeEval());
+    const cel = fin.items.filter(i => i.measure.id === 'cellulose')[0];
+    return { cost: cel.cost, adj: cel.adjustments, total: fin.cost };
+  });
+  assert(withRule.cost === 3000, 'rule adds $500 to the measure (2500 -> 3000)');
+  assert(withRule.adj.length === 1 && withRule.adj[0].label === 'Large home surcharge', 'adjustment carries its label');
+  assert(withRule.total === 5230 + 500, 'plan total includes the rule (' + withRule.total + ')');
+
+  // Per-sqft adjustment math
+  await page.selectOption('select[data-bind="admin.pricingRules.0.adjustType"]', 'persqft');
+  await page.waitForTimeout(300);
+  await page.fill('input[data-bind="admin.pricingRules.0.amount"]', '0.5');
+  await page.waitForTimeout(900);
+  const perSqft = await page.evaluate(() =>
+    Store.financials(Store.activeEval()).items.filter(i => i.measure.id === 'cellulose')[0].adjustments[0].amount);
+  assert(perSqft === Math.round(0.5 * 2450), 'per-sqft adjustment = $0.50 x 2450 sqft (' + perSqft + ')');
+  await page.selectOption('select[data-bind="admin.pricingRules.0.adjustType"]', 'flat');
+  await page.waitForTimeout(300);
+  await page.fill('input[data-bind="admin.pricingRules.0.amount"]', '500');
+  await page.waitForTimeout(800);
+
+  // Select-driven rule on a dropdown answer, applied to any measure
+  await page.evaluate(() => {
+    Store.zone(Store.activeEval(), 'attic').fields.insulationType = 'Blown-in Cellulose';
+    const r = Admin.addRule();
+    r.field = 'zones.attic.fields.insulationType';
+    r.op = 'eq'; r.value = 'blown-in cellulose';
+    r.adjustType = 'flat'; r.amount = '100'; r.label = 'Cellulose top-up prep';
+    Store.save();
+  });
+  const anyRule = await page.evaluate(() => {
+    const fin = Store.financials(Store.activeEval());
+    return { every: fin.items.every(i => i.adjustments.some(a => a.label === 'Cellulose top-up prep')), total: fin.cost };
+  });
+  assert(anyRule.every, 'any-measure rule matches a dropdown answer case-insensitively');
+  assert(anyRule.total === 5730 + 400, 'four measures each +$100 (' + anyRule.total + ')');
+
+  // Builder shows the auto-pricing breakdown
+  await page.goto(APP + '#/eval/' + evId + '/builder');
+  await page.waitForTimeout(400);
+  await page.click('[data-action="builder-pick"][data-mid="cellulose"]');
+  await page.waitForTimeout(300);
+  txt = await body();
+  assert(txt.includes('Auto-pricing from audit data'), 'builder shows auto-pricing breakdown');
+  assert(txt.includes('Large home surcharge'), 'builder lists the rule label');
+  await shot('08-builder-autoprice');
+
+  // Proposal doc totals include rule adjustments
+  await page.goto(APP + '#/eval/' + evId + '/proposal-doc');
+  await page.waitForTimeout(500);
+  assert((await body()).includes('$6,130'), 'proposal total includes pricing rules');
+
+  // Delete the any-measure rule through the UI (confirm auto-accepted)
+  const rule2Id = await page.evaluate(() => Store.state.admin.pricingRules[1].id);
+  await page.goto(APP + '#/admin/rule/' + rule2Id);
+  await page.waitForTimeout(300);
+  await page.click('[data-action="admin-rule-delete"]');
+  await page.waitForTimeout(400);
+  const afterDelete = await page.evaluate(() => ({
+    rules: Store.pricingRules().length,
+    total: Store.financials(Store.activeEval()).cost
+  }));
+  assert(afterDelete.rules === 1 && afterDelete.total === 5730, 'deleting a rule restores pricing (' + afterDelete.total + ')');
+
+  // Prompts: motivations list feeds New Evaluation
+  await page.goto(APP + '#/admin/prompts');
+  await page.waitForTimeout(400);
+  const mots = await page.inputValue('textarea[data-bind="admin.prompts.motivations"]');
+  await page.fill('textarea[data-bind="admin.prompts.motivations"]', mots + '\nSolar Prep');
+  await page.waitForTimeout(300);
+  await page.goto(APP + '#/new');
+  await page.waitForTimeout(400);
+  assert(await page.locator('select[data-bind="new.motivation"] option', { hasText: 'Solar Prep' }).count() === 1, 'custom motivation appears on New Evaluation');
+
+  // Prompts: blower checklist add/remove flows into the test screen
+  await page.goto(APP + '#/admin/prompts');
+  await page.waitForTimeout(400);
+  await page.click('[data-action="admin-check-add"]');
+  await page.waitForTimeout(400);
+  await page.goto(APP + '#/eval/' + evId + '/blower');
+  await page.waitForTimeout(400);
+  assert(await page.locator('[data-action="blower-check"]').count() === 6, 'added checklist item shows on the blower screen');
+  await page.goto(APP + '#/admin/prompts');
+  await page.waitForTimeout(400);
+  await page.click('[data-action="admin-check-remove"][data-idx="5"]');
+  await page.waitForTimeout(400);
+  await page.goto(APP + '#/eval/' + evId + '/blower');
+  await page.waitForTimeout(400);
+  assert(await page.locator('[data-action="blower-check"]').count() === 5, 'removed checklist item restores the default five');
+
+  // Prompts: CAZ wording edit + reset
+  await page.goto(APP + '#/admin/prompts');
+  await page.waitForTimeout(400);
+  await page.fill('input[data-bind="admin.prompts.cazTests.0.name"]', 'Draft Integrity Test');
+  await page.waitForTimeout(300);
+  await page.goto(APP + '#/eval/' + evId + '/caz');
+  await page.waitForTimeout(400);
+  assert((await body()).includes('Draft Integrity Test'), 'renamed CAZ hard-stop shows in the audit');
+  await page.goto(APP + '#/admin/prompts');
+  await page.waitForTimeout(400);
+  await page.click('[data-action="admin-prompts-reset"][data-key="cazTests"]');
+  await page.waitForTimeout(400);
+  const cazName = await page.evaluate(() => Store.prompts('cazTests')[0].name);
+  assert(cazName === 'Venting Test', 'CAZ wording reset restores the default');
+
+  // Config persists across reload; export/import round-trips
+  await page.reload();
+  await page.waitForTimeout(700);
+  const persisted = await page.evaluate(() => ({
+    cost: parseFloat(Store.measure('cellulose').cost),
+    rules: Store.pricingRules().length,
+    n: Store.catalog().length
+  }));
+  assert(persisted.cost === 2500 && persisted.rules === 1 && persisted.n === 9, 'admin config survives reload');
+  const roundtrip = await page.evaluate(() => {
+    const payload = Admin.exportPayload();
+    const json = JSON.stringify(payload);
+    Store.state.admin = { catalog: null, pricingRules: [], prompts: null };
+    Store.save();
+    const cleared = Store.catalog().length === 8 && Store.pricingRules().length === 0;
+    Admin.importConfig(json);
+    return { cleared: cleared, n: Store.catalog().length, cost: parseFloat(Store.measure('cellulose').cost), rules: Store.pricingRules().length };
+  });
+  assert(roundtrip.cleared, 'clearing config falls back to defaults');
+  assert(roundtrip.n === 9 && roundtrip.cost === 2500 && roundtrip.rules === 1, 'export/import round-trips the full config');
+
   // Settings entry point
   await page.goto(APP + '#/settings');
   await page.waitForTimeout(400);
   assert((await body()).includes('Edit Proposal Template'), 'settings links to the template editor');
+  assert((await body()).includes('Open Admin Portal'), 'settings links to the admin portal');
 
   if (errors.length) throw new Error('Console/page errors:\n' + errors.join('\n'));
   console.log('\nALL SMOKE TESTS PASSED');

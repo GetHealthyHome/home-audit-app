@@ -36,6 +36,16 @@ in the field.
   On the proposal screen the assessor **checks/unchecks which recommended
   improvements** appear in the document without touching the working plan.
   Custom templates persist locally; one tap restores the default design.
+- **Admin Portal** (`#/admin`, from Settings) — company configuration that
+  overlays the shipped defaults: manage the **improvement catalog** (add /
+  edit / delete measures: costs, savings, ROI, rebates, science copy,
+  benefits), define **pricing rules** that automatically adjust a measure's
+  cost from audit answers (flat $, $ per sqft, or % of base — conditioned on
+  any audit field: square footage, dropdown selections, test readings; shown
+  as an auto-pricing breakdown in the Builder, overridable per audit), and
+  edit **audit prompts** (motivations, heat types, blower-door checklist
+  items, CAZ hard-stop wording). Config lives in local state and can be
+  **exported/imported as JSON** to keep crew devices in sync.
 - **Calendar view** on the dashboard (month grid with appointment dots)
 - **Media review & tagging** (required-tag tracking), **audit history**,
   read-only **Assessment Record**, per-audit **JSON export**
