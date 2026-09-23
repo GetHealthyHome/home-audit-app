@@ -284,115 +284,88 @@
       '</div>';
   };
 
-  /* ---------------- Customer-facing Proposal Document ---------------- */
+  /* ---------------- Customer-facing Proposal Document ----------------
+     Rendered from the editable HTML template (js/proposal.js, #/template).
+     The controls card lets the assessor check/uncheck which recommended
+     improvements make it into this document. */
   window.ScreenProposalDoc = function (ev) {
-    var fin = Store.financials(ev);
-    var today = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-    var brand = '<div class="pd-brand"><span class="logo">' + icon('bolt') + '</span> HomSci Pro</div>';
+    var omit = ev.proposalOmit || [];
+    var included = Proposal.includedIds(ev);
 
-    var selectedPhotos = (ev.proposalMedia || []).map(function (id) {
-      var p = ev.photos.filter(function (x) { return x.id === id; })[0];
-      return p ? { p: p, url: Store.photoUrl(p.id) } : null;
-    }).filter(function (x) { return x && x.url; });
+    var measureChecks = ev.selections.map(function (id) {
+      var m = measureById(id);
+      if (!m) return '';
+      var on = omit.indexOf(id) < 0;
+      var r = ev.recs[id] || {};
+      var cost = r.cost != null && r.cost !== '' ? r.cost : m.cost;
+      return '<button class="check-row" data-action="pdoc-measure" data-mid="' + id + '">' +
+        '<span class="cbox ' + (on ? 'on' : '') + '">' + (on ? icon('check') : '') + '</span>' +
+        '<span class="cbody"><b>' + esc(m.name) + '</b><span>' + UI.money(parseFloat(cost) || 0) + ' · ' + esc(m.impact) + '</span></span>' +
+        '</button>';
+    }).join('');
 
-    var breakevenYear = fin.payback != null ? Math.ceil(fin.payback) : null;
+    var controls = '<div class="card no-print">' + UI.sectionHeading('Proposal Contents', 'edit') +
+      '<p class="hint">Uncheck an improvement to leave it out of this document — it stays in your working plan.</p>' +
+      measureChecks +
+      '<div class="kv-row" style="margin-top:8px"><span class="k">' + icon('photo') + ' Site photos</span>' +
+      '<span class="v">' + (ev.proposalMedia || []).length + ' selected</span></div>' +
+      '<div class="btn-row" style="margin-top:10px">' +
+      '<button class="btn small secondary" data-action="nav" data-route="#/eval/' + ev.id + '/proposal-media">Choose Photos</button>' +
+      '<button class="btn small secondary" data-action="nav" data-route="#/template">' + icon('edit') + ' Edit Template</button>' +
+      '</div></div>';
 
-    /* Cover */
-    var cover = '<section class="pd-page">' + brand +
-      '<div class="pd-kicker">Home Performance Proposal</div>' +
-      '<h1>A healthier, more efficient home.</h1>' +
-      '<div class="pd-meta">Prepared for <b>' + esc(ev.customer.name || 'Homeowner') + '</b><br>' +
-      esc(ev.customer.address || '') + '<br>' + esc(today) +
-      (Store.state.auditor.name ? '<br>Field auditor: ' + esc(Store.state.auditor.name) : '') + '</div>' +
-      '<div class="pd-hero">' +
-      '<div><div class="hv">' + UI.money(fin.cost) + '</div><div class="hk">Total Investment</div></div>' +
-      '<div><div class="hv">' + UI.money(fin.savings) + '</div><div class="hk">Savings / Year</div></div>' +
-      '<div><div class="hv">' + (fin.payback != null ? fin.payback + ' yrs' : '—') + '</div><div class="hk">Simple Payback</div></div>' +
-      '</div>' +
-      '<p style="font-size:13.5px;color:var(--muted)">This proposal is based on a whole-home diagnostic assessment of your property' +
-      (ev.tests.blower.cfm50 ? ', including a calibrated blower-door test (' + esc(ev.tests.blower.cfm50) + ' CFM50)' : '') +
-      (ev.tests.iaq.co2 ? ' and an indoor air quality baseline (' + esc(ev.tests.iaq.co2) + ' ppm CO₂)' : '') +
-      '. Each recommended improvement below includes what it costs, what it saves, and why it matters for your home.</p>' +
-      (fin.payback != null && fin.payback < DATA.MARKET_AVG_PAYBACK_YEARS ?
-        '<p style="font-size:13.5px;color:var(--green);font-weight:700">Your plan pays for itself ' +
-        Math.round((DATA.MARKET_AVG_PAYBACK_YEARS - fin.payback) * 10) / 10 + ' years ahead of the market average (' + DATA.MARKET_AVG_PAYBACK_YEARS + ' years).</p>' : '') +
-      (function () {
-        var em = ev.energyModel && ev.energyModel.climate ? EnergyModel.compute(ev) : null;
-        if (!em || !em.totalCost) return '';
-        var loc = ev.energyModel.resolved ? ev.energyModel.resolved.name +
-          (ev.energyModel.resolved.admin1 ? ', ' + ev.energyModel.resolved.admin1 : '') : ev.energyModel.location;
-        return '<p style="font-size:13.5px;color:var(--muted)">Using a full year of local weather data for <b>' + esc(loc) +
-          '</b> (' + ev.energyModel.climate.hdd.toLocaleString() + ' heating degree days), we model your current energy spend at <b>' +
-          UI.money(em.totalCost) + ' per year</b>' +
-          (fin.savings ? ' — this plan addresses about <b style="color:var(--green)">' + Math.round(fin.savings / em.totalCost * 100) + '%</b> of it' : '') + '.</p>';
-      })() +
-      '</section>';
-
-    /* Investment breakdown */
-    var rows = fin.items.map(function (i) {
-      return '<tr><td><b>' + esc(i.measure.name) + '</b><br><span style="color:var(--muted)">' + esc(i.measure.desc.split('.')[0]) + '.</span>' +
-        (i.notes ? '<br><span style="color:var(--muted);font-style:italic">Scope: ' + esc(i.notes) + '</span>' : '') + '</td>' +
-        '<td class="num">' + UI.money(i.cost) + '</td>' +
-        '<td class="num" style="color:var(--green)">' + UI.money(i.savings) + '/yr</td></tr>';
-    }).join('') +
-    (fin.upcharge ? '<tr><td><b>Restricted-access labor</b><br><span style="color:var(--muted)">Crawlspace clearance below ' +
-      DATA.CRAWL_MIN_CLEARANCE_IN + '&quot; requires premium labor rates.</span></td>' +
-      '<td class="num">' + UI.money(fin.upcharge) + '</td><td class="num">—</td></tr>' : '') +
-    '<tr class="total"><td>Total</td><td class="num">' + UI.money(fin.cost) + '</td><td class="num">' + UI.money(fin.savings) + '/yr</td></tr>';
-
-    var breakdown = '<section class="pd-page">' + brand +
-      '<h2>Your Investment</h2>' +
-      '<table class="pd-table"><thead><tr><th>Improvement</th><th style="text-align:right">Cost</th><th style="text-align:right">Saves</th></tr></thead>' +
-      '<tbody>' + rows + '</tbody></table>' +
-      (breakevenYear != null ?
-        '<p style="font-size:13px;color:var(--muted)">Cumulative savings overtake the investment in <b>Year ' + breakevenYear + '</b>. ' +
-        'Projected 20-year net gain: <b style="color:var(--green)">' + UI.money(fin.savings * 20 - fin.cost) + '</b> (at current utility rates, before rebates).</p>' : '') +
-      (fin.items.some(function (i) { return i.measure.rebate; }) ?
-        '<p style="font-size:13px;color:var(--muted)">Rebate-eligible measures: ' +
-        fin.items.filter(function (i) { return i.measure.rebate; }).map(function (i) { return esc(i.measure.name) + ' (' + esc(i.measure.rebate) + ')'; }).join(', ') +
-        '. We will handle the paperwork.</p>' : '') +
-      '</section>';
-
-    /* Per-measure detail */
-    var details = '<section class="pd-page">' + brand +
-      '<h2>Why Each Improvement Matters</h2>' +
-      fin.items.map(function (i) {
-        return '<div class="pd-measure"><h3>' + esc(i.measure.name) + '<span class="cost">' + UI.money(i.cost) + '</span></h3>' +
-          '<p>' + esc(i.measure.desc) + '</p>' +
-          '<div class="why"><b>The building science:</b> ' + science(i.measure.science) + '</div>' +
-          '<div class="why" style="background:var(--surface-2)"><b style="color:var(--ink)">You will notice:</b> ' +
-          i.measure.benefits.map(esc).join(' · ') + '</div></div>';
-      }).join('') +
-      '</section>';
-
-    /* Site evidence */
-    var evidence = selectedPhotos.length ?
-      '<section class="pd-page">' + brand +
-      '<h2>What We Found In Your Home</h2>' +
-      '<p style="font-size:13px;color:var(--muted)">Photos captured during your assessment on ' +
-      esc((ev.photos[0] && ev.photos[0].ts || '').slice(0, 10)) + '.</p>' +
-      '<div class="pd-gallery">' + selectedPhotos.map(function (x) {
-        return '<figure><img src="' + x.url + '" alt="' + esc(x.p.label || '') + '"><figcaption>' + esc(x.p.label || 'Site photo') + '</figcaption></figure>';
-      }).join('') + '</div></section>' : '';
-
-    /* Terms + signature */
-    var terms = '<section class="pd-page">' + brand +
-      '<h2>Next Steps</h2>' +
-      '<p style="font-size:13.5px;color:var(--muted)">Accepting this proposal reserves your place on our installation calendar. ' +
-      'Savings estimates are based on your home’s measured performance and current utility rates; actual results vary with weather and occupancy. ' +
-      'Pricing is valid for 30 days from the date above. Rebate values depend on program availability at the time of installation.</p>' +
-      '<div class="pd-sign"><div>Homeowner signature / date</div><div>HomSci Pro representative / date</div></div>' +
-      '<p class="pd-fineprint">Prepared with HomSci Pro field diagnostics. Assessment data — including blower-door depressurization, ' +
-      'combustion safety hard-stops, and indoor air quality baselines — is retained in your audit record and available on request.</p>' +
-      '</section>';
+    var doc;
+    try {
+      doc = Tpl.render(Proposal.template(), Proposal.context(ev));
+    } catch (err) {
+      doc = '<div class="empty no-print">' + icon('alert') + '<b>Template error</b><p>' + esc(err.message) +
+        '</p><button class="btn small secondary" style="width:auto;margin-top:10px" data-action="nav" data-route="#/template">Open Template Editor</button></div>';
+    }
 
     return UI.subbar('Proposal Preview', '#/eval/' + ev.id + '/summary',
         '<button class="btn small primary" style="width:auto" data-action="print-doc">' + icon('print') + ' Print / Save PDF</button>') +
       '<div class="screen pdoc">' +
-      (fin.items.length ? cover + breakdown + details + evidence + terms :
-        '<div class="empty">' + icon('doc') + '<b>No measures selected</b><p>Add improvements from the Catalog before generating a proposal.</p></div>') +
+      (ev.selections.length ? controls : '') +
+      (included.length ? doc :
+        '<div class="empty">' + icon('doc') + '<b>No measures in the proposal</b><p>' +
+        (ev.selections.length ? 'Everything is unchecked above — include at least one improvement.'
+          : 'Add improvements from the Catalog before generating a proposal.') + '</p></div>') +
       '</div>';
   };
+
+  /* ---------------- Proposal Template Editor ---------------- */
+  window.ScreenTemplate = function () {
+    var custom = !!Store.state.proposalTemplate;
+    if (TemplateDraft.html == null) TemplateDraft.html = Proposal.template();
+
+    var tokenRows = Proposal.TOKENS.map(function (t) {
+      return '<div class="tok-row"><code>' + esc(t[0]) + '</code><span>' + esc(t[1]) + '</span></div>';
+    }).join('');
+
+    var active = Store.activeEval();
+
+    return UI.subbar('Proposal Template', '#/settings') +
+      '<div class="screen">' +
+      '<span class="eyebrow blue">' + icon('edit') + ' Document Designer</span>' +
+      '<h1 class="screen-title">Proposal Template</h1>' +
+      '<p class="screen-sub">The proposal document is generated from this HTML. Edit the layout, wording and branding freely — <code>{{tokens}}</code> are replaced with live assessment data when the proposal is generated.</p>' +
+      '<div style="display:flex;gap:8px;margin-bottom:12px">' +
+      UI.pill(custom ? 'progress' : 'complete', custom ? 'Customized' : 'Default design') + '</div>' +
+
+      '<textarea class="tpl-editor" data-bind="tpl.html" spellcheck="false">' + esc(TemplateDraft.html) + '</textarea>' +
+
+      '<div class="btn-row" style="margin:12px 0">' +
+      '<button class="btn primary" data-action="tpl-save">Save Template</button>' +
+      '<button class="btn secondary" data-action="tpl-preview"' + (active ? '' : ' disabled') + '>Save &amp; Preview</button>' +
+      '</div>' +
+      '<button class="btn danger-ghost" data-action="tpl-reset"' + (custom ? '' : ' disabled') + '>Reset to default design</button>' +
+
+      '<div class="card" style="margin-top:16px">' + UI.sectionHeading('Available Tokens', 'info') +
+      '<p class="hint">Sections: <code>{{#if x}}…{{/if}}</code> renders only when data exists; <code>{{#each list}}…{{/each}}</code> repeats per item. Style with the <code>pd-page</code>, <code>pd-table</code>, <code>pd-hero</code>, <code>pd-measure</code>, <code>pd-gallery</code> classes or your own inline CSS.</p>' +
+      '<div class="tok-list">' + tokenRows + '</div></div>' +
+      '</div>';
+  };
+  window.TemplateDraft = {};
 
   /* ---------------- Assessment Record (read-only summary) ---------------- */
   window.ScreenRecord = function (ev) {

@@ -351,6 +351,13 @@
       UI.field({ label: 'Initials (avatar)', bind: 'auditor.initials', placeholder: 'JD', value: s.auditor.initials }) +
       '</div>' +
 
+      '<div class="card"><h3>Proposal Template</h3>' +
+      '<p class="hint">Customer proposals are generated from an editable HTML template — adjust the layout, wording and branding to match your current design.</p>' +
+      '<div style="display:flex;gap:8px;margin-bottom:10px">' +
+      UI.pill(Store.state.proposalTemplate ? 'progress' : 'complete', Store.state.proposalTemplate ? 'Customized' : 'Default design') + '</div>' +
+      '<button class="btn secondary" data-action="nav" data-route="#/template">' + icon('edit') + ' Edit Proposal Template</button>' +
+      '</div>' +
+
       '<div class="card"><h3>Cloud Sync</h3>' +
       (Backend.ready()
         ? '<p class="hint">Connected to the HomSci cloud (Supabase). Audits and photos sync when you finalize an assessment, and retry automatically when you come back online.' +

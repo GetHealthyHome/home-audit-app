@@ -57,6 +57,7 @@
         case 'new': html = ScreenNewEval(); break;
         case 'history': html = ScreenHistory(uiState.historyQuery); break;
         case 'settings': html = ScreenSettings(); break;
+        case 'template': html = ScreenTemplate(); break;
         case 'login': html = ScreenLogin(); break;
         case 'assess': {
           var active = Store.activeEval();
@@ -133,6 +134,7 @@
     // 'new.*'/'login.*' → transient drafts; 'auditor.*' → Store.state; else active evaluation
     if (path.indexOf('new.') === 0) return { obj: NewEvalDraft, path: path.slice(4), transient: true };
     if (path.indexOf('login.') === 0) return { obj: LoginDraft, path: path.slice(6), transient: true };
+    if (path.indexOf('tpl.') === 0) return { obj: TemplateDraft, path: path.slice(4), transient: true };
     if (path.indexOf('auditor.') === 0) return { obj: Store.state, path: path };
     return { obj: Store.activeEval(), path: path };
   }
@@ -339,7 +341,9 @@
         Store.save(); rerender();
       },
       'iaq-reset': function () {
-        ev.tests.iaq = { startedAt: null, finishedAt: null, co2: '', voc: '' };
+        var t = { startedAt: null, finishedAt: null };
+        DATA.IAQ_METRICS.forEach(function (m) { t[m.id] = ''; });
+        ev.tests.iaq = t;
         Store.save(); rerender();
       },
       'iaq-save': function () {
@@ -364,6 +368,34 @@
         Store.save(); rerender();
       },
       'pmedia-clear': function () { ev.proposalMedia = []; Store.save(); rerender(); },
+      'pdoc-measure': function () {
+        var mid = el.getAttribute('data-mid');
+        ev.proposalOmit = ev.proposalOmit || [];
+        var i = ev.proposalOmit.indexOf(mid);
+        if (i >= 0) ev.proposalOmit.splice(i, 1); else ev.proposalOmit.push(mid);
+        Store.save(); rerender();
+      },
+      'tpl-save': function () {
+        Store.state.proposalTemplate = TemplateDraft.html || Proposal.DEFAULT_TEMPLATE;
+        Store.save();
+        UI.toast('Template saved — all future proposals use this design.');
+        rerender();
+      },
+      'tpl-reset': function () {
+        if (!confirm('Discard your custom template and restore the default design?')) return;
+        delete Store.state.proposalTemplate;
+        TemplateDraft.html = null;
+        Store.save();
+        UI.toast('Default template restored.');
+        rerender();
+      },
+      'tpl-preview': function () {
+        var active = Store.activeEval();
+        if (!active) { UI.toast('Open an evaluation first to preview with its data.'); return; }
+        Store.state.proposalTemplate = TemplateDraft.html || Proposal.DEFAULT_TEMPLATE;
+        Store.save();
+        location.hash = '#/eval/' + active.id + '/proposal-doc';
+      },
       'print-doc': function () { window.print(); },
       'dash-view': function () {
         uiState.dashView = el.getAttribute('data-view');

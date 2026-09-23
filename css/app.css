@@ -521,14 +521,16 @@ select.input {
 }
 
 /* ---------- Calendar ---------- */
-.cal-card { padding: 14px; }
+.cal-card { padding: 14px; overflow: hidden; }
 .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .cal-head b { font: 800 16px var(--font-display); }
 .cal-head .iconbtn { width: 34px; height: 34px; border: none; border-radius: 999px; background: var(--surface-2); font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+/* minmax(0,1fr) + min-width:0 stop aspect-ratio buttons from inflating the
+   tracks past the card (the grid used to blow out the whole viewport). */
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .cal-dow span { text-align: center; font: 700 10px var(--font-body); color: var(--faint); padding: 4px 0; }
 .cal-cell {
-  position: relative; aspect-ratio: 1; border: none; border-radius: 10px;
+  position: relative; aspect-ratio: 1; min-width: 0; padding: 0; border: none; border-radius: 10px;
   background: transparent; font: 600 13px var(--font-body); color: var(--ink);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
 }
@@ -587,6 +589,29 @@ select.input {
 .pdoc .pd-fineprint { font-size: 10.5px; color: var(--faint); line-height: 1.5; margin-top: 18px; }
 .pdoc .pd-sign { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 30px; }
 .pdoc .pd-sign > div { border-top: 1.5px solid var(--ink); padding-top: 6px; font-size: 11px; color: var(--muted); }
+
+/* ---------- Proposal contents checklist + template editor ---------- */
+.check-row { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); align-items: center; width: 100%; background: none; border-left: none; border-right: none; border-top: none; text-align: left; }
+.check-row:last-of-type { border-bottom: none; }
+.check-row .cbox {
+  width: 22px; height: 22px; flex: none; border-radius: 6px;
+  border: 2px solid var(--border-strong); color: transparent;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 12px;
+}
+.check-row .cbox.on { background: var(--green); border-color: var(--green); color: #fff; }
+.check-row .cbody { min-width: 0; }
+.check-row .cbody b { display: block; font-size: 14px; }
+.check-row .cbody span { color: var(--muted); font-size: 12px; }
+.tpl-editor {
+  width: 100%; min-height: 320px; resize: vertical; border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius); background: var(--dark); color: #d8e4d8; padding: 14px;
+  font: 400 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre; overflow-x: auto; -webkit-text-size-adjust: 100%;
+}
+.tpl-editor:focus { outline: 2px solid var(--green); }
+.tok-list { display: flex; flex-direction: column; gap: 8px; }
+.tok-row code { display: block; font: 600 11px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--green-deep); background: var(--surface-2); border-radius: 6px; padding: 6px 8px; overflow-x: auto; white-space: nowrap; }
+.tok-row span { display: block; font-size: 11.5px; color: var(--muted); margin: 3px 0 0 2px; }
 
 @media print {
   .pdoc .pd-page { border: none; border-radius: 0; margin: 0; padding: 0 0 24px; page-break-after: always; }
