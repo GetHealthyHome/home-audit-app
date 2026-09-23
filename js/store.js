@@ -33,7 +33,8 @@
       photos: [], // {id, zone, label, required, ts, tag}
       selections: [], // catalog measure ids
       recs: {}, // measureId -> {cost, savings, notes}
-      proposalMedia: [] // photo ids selected for proposal
+      proposalMedia: [], // photo ids selected for proposal
+      proposalOmit: [] // selected measure ids unchecked from the proposal doc
     };
   }
 
@@ -318,8 +319,11 @@
       };
     },
 
-    financials: function (ev) {
-      var items = ev.selections.map(function (id) {
+    /* onlyIds (optional) restricts the plan to those measure ids — used by
+       the proposal doc, where the assessor can uncheck measures. */
+    financials: function (ev, onlyIds) {
+      var ids = onlyIds ? ev.selections.filter(function (id) { return onlyIds.indexOf(id) >= 0; }) : ev.selections;
+      var items = ids.map(function (id) {
         var m = DATA.CATALOG.filter(function (c) { return c.id === id; })[0];
         if (!m) return null;
         var r = ev.recs[id] || {};

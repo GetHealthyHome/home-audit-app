@@ -29,6 +29,13 @@ in the field.
   projection) → **customer-facing Proposal document** (cover, investment
   table, per-measure explanations, site evidence gallery, signature page)
   with print-optimized PDF layout
+- **Proposal generator** — the proposal is rendered from an **editable HTML
+  template** (Settings → Edit Proposal Template, or `#/template`): a
+  mustache-style engine (`js/proposal.js`) substitutes `{{tokens}}` with live
+  assessment data, photos and financials, with `{{#if}}`/`{{#each}}` sections.
+  On the proposal screen the assessor **checks/unchecks which recommended
+  improvements** appear in the document without touching the working plan.
+  Custom templates persist locally; one tap restores the default design.
 - **Calendar view** on the dashboard (month grid with appointment dots)
 - **Media review & tagging** (required-tag tracking), **audit history**,
   read-only **Assessment Record**, per-audit **JSON export**
