@@ -26,6 +26,10 @@
       '<h1 class="screen-title">Admin Portal</h1>' +
       '<p class="screen-sub">Configure what your auditors see and sell: the improvement catalog, audit-driven pricing, audit prompts, and the proposal design.</p>' +
 
+      (Backend.ready() ?
+        navCard('#/admin/crew', 'user', 'Crew Accounts',
+          'Create sign-ins, assign admin/auditor roles, reset passwords',
+          UI.pill('magenta', 'Cloud')) : '') +
       navCard('#/admin/catalog', 'layers', 'Improvement Catalog',
         catalogN + ' measures — names, costs, savings, science copy',
         UI.pill(customCatalog ? 'progress' : 'complete', customCatalog ? 'Customized' : 'Default')) +
@@ -49,6 +53,77 @@
       '</div>' +
       '</div>';
   };
+
+  /* ---------------- Access gate ---------------- */
+  window.ScreenAdminLocked = function () {
+    var sess = Auth.session();
+    return UI.subbar('Admin', '#/settings') +
+      '<div class="screen"><div class="empty" style="padding-top:70px">' + icon('lock') +
+      '<b>Admin access required</b>' +
+      (sess
+        ? '<p>Signed in as ' + esc(sess.user.email) + ' (' + esc(Auth.role() || 'auditor') + ').<br>Ask a company admin to grant you the admin role in Crew Accounts.</p>'
+        : '<p>Sign in with an admin account to configure the catalog, pricing, prompts and proposal template.</p>' +
+          '<button class="btn primary" style="max-width:280px;margin:16px auto 0" data-action="nav" data-route="#/login">Sign In</button>') +
+      '</div></div>';
+  };
+
+  /* ---------------- Crew accounts (cloud) ---------------- */
+  window.CrewCache = { list: null, loading: false, error: null };
+  window.ScreenAdminCrew = function () {
+    if (!Backend.ready()) {
+      return UI.subbar('Crew Accounts', '#/admin') +
+        '<div class="screen"><div class="empty">' + icon('user') + '<b>No backend configured</b><p>Crew accounts need the Supabase backend (js/config.js).</p></div></div>';
+    }
+    if (!CrewCache.list && !CrewCache.loading && !CrewCache.error) {
+      CrewCache.loading = true;
+      Backend.profiles().then(function (rows) {
+        CrewCache.list = rows || [];
+        CrewCache.loading = false;
+        window.rerender();
+      }).catch(function (e) {
+        CrewCache.loading = false;
+        CrewCache.error = e.message === 'SIGN_IN_REQUIRED' ? 'Sign in to load crew accounts.' : e.message;
+        window.rerender();
+      });
+    }
+
+    var me = Auth.session() && Auth.session().user.id;
+    var rows = (CrewCache.list || []).map(function (p) {
+      var self = p.id === me;
+      return '<div class="card" style="padding:14px">' +
+        '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">' +
+        '<div style="min-width:0"><b>' + esc(p.name || p.email.split('@')[0]) + (self ? ' <span style="color:var(--muted);font-weight:600">(you)</span>' : '') + '</b>' +
+        '<div style="font:600 12px var(--font-body);color:var(--muted);overflow-wrap:anywhere">' + esc(p.email) + '</div></div>' +
+        UI.pill(p.role === 'admin' ? 'magenta' : 'progress', p.role) + '</div>' +
+        '<div class="btn-row" style="margin:12px 0 0">' +
+        '<button class="btn small secondary" data-action="crew-role" data-uid="' + esc(p.id) + '" data-role="' + (p.role === 'admin' ? 'auditor' : 'admin') + '"' + (self && p.role === 'admin' ? ' disabled' : '') + '>' +
+        (p.role === 'admin' ? 'Make Auditor' : 'Make Admin') + '</button>' +
+        '<button class="btn small secondary" data-action="crew-passwd" data-uid="' + esc(p.id) + '">Reset Password</button>' +
+        '<button class="btn small danger-ghost" data-action="crew-remove" data-uid="' + esc(p.id) + '"' + (self ? ' disabled' : '') + '>Remove</button>' +
+        '</div></div>';
+    }).join('');
+
+    return UI.subbar('Crew Accounts', '#/admin',
+        '<button class="iconbtn" data-action="crew-refresh" aria-label="Refresh">' + icon('sync') + '</button>') +
+      '<div class="screen">' +
+      '<h1 class="screen-title">Crew Accounts</h1>' +
+      '<p class="screen-sub">Everyone who can sign in and sync audits. Admins can open this portal; auditors run assessments and proposals in the field.</p>' +
+
+      '<div class="card">' + UI.sectionHeading('Add Crew Member', 'plus') +
+      UI.field({ label: 'Email', bind: 'crew.email', type: 'email', placeholder: 'crew@gethealthyhome.com', value: CrewDraft.email }) +
+      UI.field({ label: 'Full Name', bind: 'crew.name', placeholder: 'Their name', value: CrewDraft.name }) +
+      UI.field({ label: 'Temporary Password', bind: 'crew.password', placeholder: 'They can change it in Settings', value: CrewDraft.password }) +
+      '<div class="field"><label>Role</label>' + UI.segmented('crew.role', ['auditor', 'admin'], CrewDraft.role || 'auditor') + '</div>' +
+      '<button class="btn primary" data-action="crew-create" id="crew-create-btn">Create Account</button>' +
+      '</div>' +
+
+      UI.sectionHeading('Roster', 'user', CrewCache.list ? '<span class="aux">' + CrewCache.list.length + ' accounts</span>' : '') +
+      (CrewCache.loading ? '<div class="empty"><p>Loading crew…</p></div>' :
+        CrewCache.error ? '<div class="empty">' + icon('alert') + '<b>Could not load crew</b><p>' + esc(CrewCache.error) + '</p></div>' :
+        rows || '<div class="empty"><p>No accounts yet.</p></div>') +
+      '</div>';
+  };
+  window.CrewDraft = {};
 
   /* ---------------- Catalog manager ---------------- */
   window.ScreenAdminCatalog = function () {

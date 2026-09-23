@@ -80,6 +80,12 @@
 
   window.Backend = {
     ready: ready,
+    /* Crew roster for the admin portal. */
+    profiles: function () {
+      return requireAuth().then(function () {
+        return rest('profiles?select=id,email,name,role,created_at&order=created_at.asc');
+      });
+    },
     publicPhotoUrl: function (storagePath) {
       return CFG.url + '/storage/v1/object/public/audit-photos/' + storagePath;
     },

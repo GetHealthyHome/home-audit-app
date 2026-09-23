@@ -50,7 +50,18 @@ in the field.
 - **Media review & tagging** (required-tag tracking), **audit history**,
   read-only **Assessment Record**, per-audit **JSON export**
 - **Cloud sync** to Supabase — offline-first with resumable photo upload and
-  automatic retry on reconnect
+  automatic retry on reconnect. **Crew roles**: every account is an `admin`
+  or `auditor` (public.profiles, created by trigger on signup). Admin-only
+  surfaces (Admin Portal, proposal template editor) are gated on the role;
+  admins manage crew from Admin Portal → Crew Accounts (create sign-ins,
+  assign roles, reset passwords, remove accounts) via the `crew-admin` edge
+  function, which verifies the caller's admin role server-side before using
+  the service key. Signed-in crew can change their own password in Settings.
+  Without a configured backend the app is single-device and admin features
+  stay open.
+- **Desktop layout** — on screens ≥940px the bottom tab bar becomes a left
+  navigation rail, the content column widens and centers, and photo/media
+  grids use the extra room (pure CSS; same markup serves phone and desktop).
 - **Energy Model (optional)** — external climate API + measured audit data →
   modeled annual energy costs (see below)
 

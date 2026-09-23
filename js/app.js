@@ -57,9 +57,11 @@
         case 'new': html = ScreenNewEval(); break;
         case 'history': html = ScreenHistory(uiState.historyQuery); break;
         case 'settings': html = ScreenSettings(); break;
-        case 'template': html = ScreenTemplate(); break;
+        case 'template': html = Auth.isAdmin() ? ScreenTemplate() : ScreenAdminLocked(); break;
         case 'admin':
+          if (!Auth.isAdmin()) { html = ScreenAdminLocked(); break; }
           switch (parts[1]) {
+            case 'crew': html = ScreenAdminCrew(); break;
             case 'catalog': html = ScreenAdminCatalog(); break;
             case 'measure': html = ScreenAdminMeasure(parts[2]); break;
             case 'pricing': html = ScreenAdminPricing(); break;
@@ -145,6 +147,7 @@
     if (path.indexOf('new.') === 0) return { obj: NewEvalDraft, path: path.slice(4), transient: true };
     if (path.indexOf('login.') === 0) return { obj: LoginDraft, path: path.slice(6), transient: true };
     if (path.indexOf('tpl.') === 0) return { obj: TemplateDraft, path: path.slice(4), transient: true };
+    if (path.indexOf('crew.') === 0) return { obj: CrewDraft, path: path.slice(5), transient: true };
     if (path.indexOf('auditor.') === 0 || path.indexOf('admin.') === 0) return { obj: Store.state, path: path };
     return { obj: Store.activeEval(), path: path };
   }
@@ -483,6 +486,62 @@
       'admin-import': function () {
         var inp = document.getElementById('admin-import-file');
         if (inp) inp.click();
+      },
+      /* ---- Crew accounts (admin) ---- */
+      'crew-refresh': function () { CrewCache.list = null; CrewCache.error = null; rerender(); },
+      'crew-create': function () {
+        if (!CrewDraft.email || !CrewDraft.password) { UI.toast('Email and a temporary password are required.'); return; }
+        var btn = document.getElementById('crew-create-btn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+        Auth.crewAdmin({
+          action: 'create', email: CrewDraft.email.trim(), password: CrewDraft.password,
+          name: CrewDraft.name || '', role: CrewDraft.role || 'auditor'
+        }).then(function () {
+          UI.toast('Account created — share the temporary password with them.');
+          Object.keys(CrewDraft).forEach(function (k) { delete CrewDraft[k]; });
+          CrewCache.list = null; CrewCache.error = null;
+          rerender();
+        }).catch(function (e) {
+          UI.toast(e.name === 'TypeError' ? 'Offline — cannot reach the account service.' : e.message);
+          rerender();
+        });
+      },
+      'crew-role': function () {
+        Auth.crewAdmin({ action: 'set-role', userId: el.getAttribute('data-uid'), role: el.getAttribute('data-role') })
+          .then(function () {
+            UI.toast('Role updated.');
+            CrewCache.list = null; rerender();
+            return Auth.refreshProfile();
+          }).then(function () { rerender(); })
+          .catch(function (e) { UI.toast(e.message); });
+      },
+      'crew-passwd': function () {
+        var pw = prompt('New temporary password for this crew member:');
+        if (!pw) return;
+        if (pw.length < 8) { UI.toast('Use at least 8 characters.'); return; }
+        Auth.crewAdmin({ action: 'set-password', userId: el.getAttribute('data-uid'), password: pw })
+          .then(function () { UI.toast('Password reset — share it with them.'); })
+          .catch(function (e) { UI.toast(e.message); });
+      },
+      'crew-remove': function () {
+        if (!confirm('Remove this crew account? They will no longer be able to sign in.')) return;
+        Auth.crewAdmin({ action: 'delete', userId: el.getAttribute('data-uid') })
+          .then(function () {
+            UI.toast('Account removed.');
+            CrewCache.list = null; rerender();
+          }).catch(function (e) { UI.toast(e.message); });
+      },
+      'auth-change-pass': function () {
+        var inp = document.querySelector('[data-bind="login.newPassword"]');
+        var pw = inp ? inp.value : '';
+        if (!pw || pw.length < 8) { UI.toast('Use at least 8 characters.'); return; }
+        Auth.changePassword(pw).then(function () {
+          if (inp) inp.value = '';
+          delete LoginDraft.newPassword;
+          UI.toast('Password changed.');
+        }).catch(function (e) {
+          UI.toast(e.message === 'SIGN_IN_REQUIRED' ? 'Sign in first.' : e.message);
+        });
       },
       'print-doc': function () { window.print(); },
       'dash-view': function () {
