@@ -6,12 +6,13 @@
   /* ---------------- Blower Door ---------------- */
   window.ScreenBlower = function (ev) {
     var t = ev.tests.blower;
-    var checklistDone = DATA.BLOWER_CHECKLIST.every(function (c) { return t.checklist[c.id]; });
+    var CHECKLIST = Store.prompts('blowerChecklist');
+    var checklistDone = CHECKLIST.every(function (c) { return t.checklist[c.id]; });
     var reqPhotosDone = DATA.BLOWER_PHOTOS.filter(function (p) { return p.required; })
       .every(function (p) { return t.photos[p.id]; });
     var canSubmit = checklistDone && reqPhotosDone && t.cfm50;
 
-    var checklist = DATA.BLOWER_CHECKLIST.map(function (c) {
+    var checklist = CHECKLIST.map(function (c) {
       var on = !!t.checklist[c.id];
       return '<button class="checklist-row ' + (on ? 'on' : '') + '" data-action="blower-check" data-check="' + c.id + '">' +
         '<span class="ring">' + icon('check') + '</span>' +
@@ -40,7 +41,7 @@
 
       '<div class="card">' + UI.sectionHeading('Mandatory Setup Checklist', 'clipboard',
         checklistDone ? UI.pill('complete', 'Ready') : '<span class="aux" style="color:var(--muted)">' +
-        DATA.BLOWER_CHECKLIST.filter(function (c) { return t.checklist[c.id]; }).length + '/' + DATA.BLOWER_CHECKLIST.length + '</span>') +
+        CHECKLIST.filter(function (c) { return t.checklist[c.id]; }).length + '/' + CHECKLIST.length + '</span>') +
       checklist + '</div>' +
 
       UI.sectionHeading('Blower Door Measurement', 'wind') +
@@ -67,12 +68,13 @@
   /* ---------------- CAZ / Combustion Safety ---------------- */
   window.ScreenCaz = function (ev) {
     var t = ev.tests.caz;
-    var recorded = DATA.CAZ_TESTS.filter(function (c) { return t.tests[c.id] && t.tests[c.id].result; });
+    var CAZ = Store.prompts('cazTests');
+    var recorded = CAZ.filter(function (c) { return t.tests[c.id] && t.tests[c.id].result; });
     var passed = recorded.filter(function (c) { return t.tests[c.id].result === 'PASS'; });
-    var allDone = recorded.length === DATA.CAZ_TESTS.length;
+    var allDone = recorded.length === CAZ.length;
     var anyFail = recorded.some(function (c) { return t.tests[c.id].result === 'FAIL'; });
 
-    var rows = DATA.CAZ_TESTS.map(function (c) {
+    var rows = CAZ.map(function (c) {
       var d = t.tests[c.id] || {};
       var photoUrl = d.photoId && Store.photoUrl(d.photoId);
       return '<div class="card" style="' + (d.result === 'FAIL' ? 'border-left:4px solid var(--red)' : d.result === 'PASS' ? 'border-left:4px solid var(--green)' : '') + '">' +
@@ -97,7 +99,7 @@
       '<div class="card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">' +
       '<div><b style="color:var(--green);font-size:16px">Safety Protocol Analysis</b>' +
       '<p class="hint" style="margin-top:6px">Systematic verification of combustion appliance zones to ensure resident safety and indoor air quality.</p></div>' +
-      '<div class="counter-badge"><div class="big ' + (anyFail ? 'bad' : '') + '">' + passed.length + '<span style="font-size:16px;color:var(--muted)">/' + DATA.CAZ_TESTS.length + '</span></div>' +
+      '<div class="counter-badge"><div class="big ' + (anyFail ? 'bad' : '') + '">' + passed.length + '<span style="font-size:16px;color:var(--muted)">/' + CAZ.length + '</span></div>' +
       '<div class="lbl">Critical Tests</div></div></div></div>' +
 
       (allDone && !anyFail ?

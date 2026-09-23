@@ -58,6 +58,16 @@
         case 'history': html = ScreenHistory(uiState.historyQuery); break;
         case 'settings': html = ScreenSettings(); break;
         case 'template': html = ScreenTemplate(); break;
+        case 'admin':
+          switch (parts[1]) {
+            case 'catalog': html = ScreenAdminCatalog(); break;
+            case 'measure': html = ScreenAdminMeasure(parts[2]); break;
+            case 'pricing': html = ScreenAdminPricing(); break;
+            case 'rule': html = ScreenAdminRule(parts[2]); break;
+            case 'prompts': html = ScreenAdminPrompts(); break;
+            default: html = ScreenAdmin();
+          }
+          break;
         case 'login': html = ScreenLogin(); break;
         case 'assess': {
           var active = Store.activeEval();
@@ -135,7 +145,7 @@
     if (path.indexOf('new.') === 0) return { obj: NewEvalDraft, path: path.slice(4), transient: true };
     if (path.indexOf('login.') === 0) return { obj: LoginDraft, path: path.slice(6), transient: true };
     if (path.indexOf('tpl.') === 0) return { obj: TemplateDraft, path: path.slice(4), transient: true };
-    if (path.indexOf('auditor.') === 0) return { obj: Store.state, path: path };
+    if (path.indexOf('auditor.') === 0 || path.indexOf('admin.') === 0) return { obj: Store.state, path: path };
     return { obj: Store.activeEval(), path: path };
   }
 
@@ -171,6 +181,23 @@
   /* Selects need a re-render to refresh derived UI (they blur immediately,
      so focus restoration isn't needed — just keep the scroll position). */
   document.addEventListener('change', function (e) {
+    if (e.target.id === 'admin-import-file') {
+      var file = e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          Admin.importConfig(reader.result);
+          UI.toast('Config imported — catalog, pricing, prompts and template applied.');
+          rerender();
+        } catch (err) {
+          UI.toast('Import failed: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+      return;
+    }
     var bind = e.target.getAttribute && e.target.getAttribute('data-bind');
     if (!bind) return;
     if (e.target.tagName === 'SELECT') rerender();
@@ -318,7 +345,7 @@
       },
       'caz-photo': function () {
         var id = el.getAttribute('data-test');
-        var def = DATA.CAZ_TESTS.filter(function (c) { return c.id === id; })[0];
+        var def = Store.prompts('cazTests').filter(function (c) { return c.id === id; })[0];
         UI.pickPhoto().then(function (file) {
           if (!file) return;
           Store.addPhoto(ev, { slotKey: 'caz-' + id, zone: 'caz', label: def.name, required: true }, file)
@@ -395,6 +422,67 @@
         Store.state.proposalTemplate = TemplateDraft.html || Proposal.DEFAULT_TEMPLATE;
         Store.save();
         location.hash = '#/eval/' + active.id + '/proposal-doc';
+      },
+      /* ---- Admin portal ---- */
+      'admin-measure-add': function () {
+        var m = Admin.addMeasure();
+        location.hash = '#/admin/measure/' + m.id;
+      },
+      'admin-measure-delete': function () {
+        if (!confirm('Delete this measure from the catalog? Audits that already selected it will drop it from their plan.')) return;
+        var mid = el.getAttribute('data-mid');
+        var cat = Admin.ensureCatalog();
+        Store.state.admin.catalog = cat.filter(function (m) { return m.id !== mid; });
+        Store.save();
+        UI.toast('Measure deleted.');
+        location.hash = '#/admin/catalog';
+      },
+      'admin-catalog-reset': function () {
+        if (!confirm('Discard all catalog customizations and restore the default measures?')) return;
+        Store.state.admin.catalog = null;
+        Store.save();
+        UI.toast('Default catalog restored.');
+        rerender();
+      },
+      'admin-rule-add': function () {
+        var r = Admin.addRule();
+        location.hash = '#/admin/rule/' + r.id;
+      },
+      'admin-rule-delete': function () {
+        if (!confirm('Delete this pricing rule?')) return;
+        var rid = el.getAttribute('data-rid');
+        Store.state.admin.pricingRules = Store.state.admin.pricingRules.filter(function (r) { return r.id !== rid; });
+        Store.save();
+        UI.toast('Rule deleted.');
+        location.hash = '#/admin/pricing';
+      },
+      'admin-prompts-reset': function () {
+        Admin.resetPrompts(el.getAttribute('data-key'));
+        UI.toast('Defaults restored.');
+        rerender();
+      },
+      'admin-check-add': function () {
+        var p = Admin.ensurePrompts();
+        p.blowerChecklist.push({ id: Store.uid('chk'), name: 'New checklist item', desc: '' });
+        Store.save(); rerender();
+      },
+      'admin-check-remove': function () {
+        var p = Admin.ensurePrompts();
+        p.blowerChecklist.splice(parseInt(el.getAttribute('data-idx'), 10), 1);
+        Store.save(); rerender();
+      },
+      'admin-export': function () {
+        var blob = new Blob([JSON.stringify(Admin.exportPayload(), null, 2)], { type: 'application/json' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'homsci-config-' + new Date().toISOString().slice(0, 10) + '.json';
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+        UI.toast('Config exported — import it on other crew devices.');
+      },
+      'admin-import': function () {
+        var inp = document.getElementById('admin-import-file');
+        if (inp) inp.click();
       },
       'print-doc': function () { window.print(); },
       'dash-view': function () {

@@ -131,18 +131,23 @@
       var breakeven = fin.payback != null ? Math.ceil(fin.payback) : null;
 
       var measures = fin.items.map(function (i) {
+        var benefits = Store.measureBenefits(i.measure);
         return {
           name: i.measure.name,
           desc: i.measure.desc,
           descShort: firstSentence(i.measure.desc),
           notes: i.notes,
           cost: i.cost, costFmt: money(i.cost),
+          base: i.base, baseFmt: money(i.base),
+          adjustments: i.adjustments.map(function (a) {
+            return { label: a.label, amount: a.amount, amountFmt: money(a.amount) };
+          }),
           savings: i.savings, savingsFmt: money(i.savings),
           roi: i.measure.roi,
           rebate: i.measure.rebate || '',
           scienceHtml: scienceHtml(i.measure.science),
-          benefits: i.measure.benefits,
-          benefitsJoined: i.measure.benefits.join(' · ')
+          benefits: benefits,
+          benefitsJoined: benefits.join(' · ')
         };
       });
 
@@ -220,6 +225,7 @@
       ['{{#each measures}} … {{/each}}', 'One block per checked improvement'],
       [' {{name}} {{desc}} {{descShort}} {{notes}}', 'Measure name, description, scope notes'],
       [' {{costFmt}} {{savingsFmt}} {{roi}} {{rebate}}', 'Measure financials'],
+      [' {{baseFmt}} · {{#each adjustments}} {{label}} {{amountFmt}} {{/each}}', 'Base cost and audit-driven pricing adjustments'],
       [' {{{scienceHtml}}} · {{benefitsJoined}}', 'Science paragraph (HTML) and benefits'],
       ['{{#each photos}} {{url}} {{label}} {{@num}} {{/each}}', 'Selected site photos'],
       ['{{#if energy}} {{energy.location}} {{energy.hdd}} {{energy.totalCostFmt}} {{energy.pctOfSpend}} {{/if}}', 'Energy model (when run)'],

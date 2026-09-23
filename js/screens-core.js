@@ -156,8 +156,8 @@
       UI.field({ label: 'Date', bind: 'new.date', type: 'date', value: draft.date || new Date().toISOString().slice(0, 10) }) +
       UI.field({ label: 'Time', bind: 'new.time', type: 'time', value: draft.time }) +
       '<div class="card" style="background:var(--surface-2);border:none;margin:4px 0 0">' +
-      UI.field({ label: 'Primary Motivation', bind: 'new.motivation', options: DATA.MOTIVATIONS, value: draft.motivation }) +
-      UI.field({ label: 'Heating System Type', bind: 'new.heatType', options: DATA.HEAT_TYPES, value: draft.heatType }) +
+      UI.field({ label: 'Primary Motivation', bind: 'new.motivation', options: Store.prompts('motivations'), value: draft.motivation }) +
+      UI.field({ label: 'Heating System Type', bind: 'new.heatType', options: Store.prompts('heatTypes'), value: draft.heatType }) +
       '</div></div>' +
       '<div class="cta-dock">' +
       '<button class="btn primary" data-action="create-eval" data-start="1">Start Evaluation ' + icon('chevR') + '</button>' +
@@ -349,6 +349,11 @@
       '<div class="card"><h3>Auditor Profile</h3>' +
       UI.field({ label: 'Auditor Name', bind: 'auditor.name', placeholder: 'Your name', value: s.auditor.name }) +
       UI.field({ label: 'Initials (avatar)', bind: 'auditor.initials', placeholder: 'JD', value: s.auditor.initials }) +
+      '</div>' +
+
+      '<div class="card"><h3>Admin Portal</h3>' +
+      '<p class="hint">Company configuration: the improvement catalog, audit-driven pricing rules, audit prompts, and the proposal template. Export the config to share it with crew devices.</p>' +
+      '<button class="btn secondary" data-action="nav" data-route="#/admin">' + icon('shield') + ' Open Admin Portal</button>' +
       '</div>' +
 
       '<div class="card"><h3>Proposal Template</h3>' +
