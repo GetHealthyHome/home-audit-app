@@ -1,0 +1,10 @@
+# Supabase project configuration used by the GitHub integration and CLI.
+# Functions declared here are auto-deployed to preview branches.
+
+[functions.hcp-jobs]
+# Housecall Pro job proxy; requires a signed-in crew member's JWT.
+verify_jwt = true
+
+[functions.crew-admin]
+# Admin-only crew account management; verifies the caller's admin role.
+verify_jwt = true
