@@ -65,6 +65,26 @@
       return q ? q.label : ref;
     },
 
+    /* Seed the editable diagnostics guides from defaults on first entry. */
+    ensureGuides: function () {
+      var a = ensureAdmin();
+      if (!a.guides) {
+        a.guides = JSON.parse(JSON.stringify(DATA.TEST_GUIDES));
+        Store.save();
+      }
+      return a.guides;
+    },
+
+    resetGuide: function (id) {
+      var guides = Admin.ensureGuides();
+      var def = DATA.TEST_GUIDES.filter(function (g) { return g.id === id; })[0];
+      if (!def) return;
+      for (var i = 0; i < guides.length; i++) {
+        if (guides[i].id === id) guides[i] = JSON.parse(JSON.stringify(def));
+      }
+      Store.save();
+    },
+
     ensurePrompts: function () {
       var a = ensureAdmin();
       if (!a.prompts) {

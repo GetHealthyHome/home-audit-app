@@ -28,9 +28,14 @@
         '<span>HomSci Pro<small>Clinical Precision</small></span></div>' +
         '<div class="spacer"></div>' +
         (opts.actions || '') +
-        '<button class="iconbtn" data-action="nav" data-route="#/history" aria-label="Search evaluations">' + icon('search') + '</button>' +
         '<button class="iconbtn avatar" data-action="nav" data-route="#/settings" aria-label="Settings">' + initials + '</button>' +
         '</header>';
+    },
+
+    /* Help icon linking to a diagnostics how-to guide (subbar action). */
+    guideBtn: function (guideId) {
+      return '<button class="iconbtn" data-action="nav" data-route="#/guide/' + esc(guideId) + '"' +
+        ' aria-label="How to run this test">' + icon('help') + '</button>';
     },
 
     /* Sub-page header with back button */

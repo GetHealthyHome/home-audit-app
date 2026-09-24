@@ -210,6 +210,63 @@
       };
     },
 
+    /* Realistic stand-in data so the visual template editor can render a
+       preview even when no evaluation is open. Mirrors context()'s shape. */
+    sampleContext: function () {
+      return {
+        company: Store.state.auditor.company || 'HomSci Pro',
+        brandIcon: icon('bolt'),
+        today: new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }),
+        assessmentDate: new Date().toISOString().slice(0, 10),
+        auditor: Store.state.auditor,
+        customer: { name: 'Sample Customer', address: '123 Maple Street, Springfield', phone: '(555) 010-0199', email: 'sample@example.com' },
+        site: { sqft: 2450, yearBuilt: 1962, stories: 2, bedrooms: 4 },
+        ashrae: { target: 68 },
+        tests: {
+          cfm50: 2340, co2: 1180,
+          iaq: [
+            { name: 'Carbon Dioxide', value: 1180, unit: 'ppm', band: 'Elevated' },
+            { name: 'Relative Humidity', value: 52, unit: '%RH', band: 'Optimal' },
+            { name: 'Chemicals (VOC)', value: 310, unit: 'µg/m³', band: 'Moderate' }
+          ]
+        },
+        measures: [
+          {
+            name: 'Attic Insulation Top-Up', desc: 'Bring the attic from R-13 to R-49 with loose-fill cellulose after air sealing the attic floor.',
+            descShort: 'Bring the attic from R-13 to R-49 with loose-fill cellulose after air sealing the attic floor.',
+            notes: '', cost: 2940, costFmt: money(2940), base: 2940, baseFmt: money(2940), adjustments: [],
+            savings: 420, savingsFmt: money(420), roi: 14, rebate: '',
+            scienceHtml: scienceHtml('Heat rises and escapes through an under-insulated attic all winter — *conditioned air you already paid for*.'),
+            benefits: ['Even room temperatures', 'Lower heating bills'],
+            benefitsJoined: 'Even room temperatures · Lower heating bills'
+          },
+          {
+            name: 'Whole-Home Air Sealing', desc: 'Seal the leaks the blower door found — top plates, penetrations, and the attic hatch.',
+            descShort: 'Seal the leaks the blower door found — top plates, penetrations, and the attic hatch.',
+            notes: '', cost: 1100, costFmt: money(1100), base: 1100, baseFmt: money(1100), adjustments: [],
+            savings: 260, savingsFmt: money(260), roi: 24, rebate: '',
+            scienceHtml: scienceHtml('Your blower-door number puts real leakage at about *a window left open year-round*.'),
+            benefits: ['Fewer drafts', 'Quieter home'],
+            benefitsJoined: 'Fewer drafts · Quieter home'
+          }
+        ],
+        fin: {
+          cost: 4040, costFmt: money(4040),
+          savings: 680, savingsFmt: money(680),
+          payback: 5.9, paybackFmt: '5.9 yrs',
+          breakeven: 6,
+          netGain20Fmt: money(680 * 20 - 4040),
+          upcharge: 0, upchargeFmt: '',
+          crawlMinClearance: DATA.CRAWL_MIN_CLEARANCE_IN,
+          rebateList: '',
+          marketPayback: DATA.MARKET_AVG_PAYBACK_YEARS,
+          aheadYears: Math.round((DATA.MARKET_AVG_PAYBACK_YEARS - 5.9) * 10) / 10
+        },
+        energy: null,
+        photos: []
+      };
+    },
+
     /* Token reference shown in the template editor. */
     TOKENS: [
       ['{{company}} · {{today}} · {{assessmentDate}}', 'Brand name, today’s date, field-visit date'],

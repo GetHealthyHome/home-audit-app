@@ -96,9 +96,7 @@
       return '<div class="day-label">' + esc(fmtDay(day)) + '</div>' + byDay[day].map(apptCard).join('');
     }).join('');
 
-    return UI.appbar({
-        actions: Backend.ready() ? '<button class="iconbtn" data-action="hcp-import" aria-label="Import Housecall Pro jobs" title="Import Housecall Pro jobs">' + icon('truck') + '</button>' : ''
-      }) +
+    return UI.appbar() +
       '<div class="screen">' +
       '<div class="searchbar">' + icon('search') +
       '<input placeholder="Find prior evaluations by customer name" data-action-input="dash-search"></div>' +
@@ -171,7 +169,7 @@
   /* ---------------- Assessment Hub ---------------- */
   window.ScreenHub = function (ev) {
     var ms = Store.moduleStatus(ev);
-    function moduleRow(route, iconName, name, status, extra) {
+    function moduleRow(route, iconName, name, status, extra, guideId) {
       var locked = status === 'locked';
       return '<button class="module-row ' + (status === 'action' ? 'action-required' : '') + (locked ? ' locked' : '') + '"' +
         (locked ? ' data-action="toast" data-msg="Complete Blower Door, IAQ and Combustion Safety to unlock recommendations."'
@@ -179,6 +177,8 @@
         '<span class="mic">' + icon(iconName) + '</span>' +
         '<span class="mbody"><b>' + esc(name) + '</b>' +
         (locked ? UI.pill('pending', 'Awaiting Tests') : UI.pill(status)) + (extra || '') + '</span>' +
+        (guideId ? '<span class="row-help" data-action="nav" data-route="#/guide/' + esc(guideId) + '"' +
+          ' role="button" aria-label="How to run this test">' + icon('help') + '</span>' : '') +
         '<span class="chev">' + icon(locked ? 'lock' : 'chevR') + '</span></button>';
     }
 
@@ -197,10 +197,10 @@
       UI.pill(ev.status === 'complete' ? 'complete' : 'progress') + '</div></div>' +
 
       UI.sectionHeading('Diagnostics', 'shield') +
-      moduleRow('#/eval/' + ev.id + '/blower', 'wind', 'Blower Door Test', ms.blower) +
-      moduleRow('#/eval/' + ev.id + '/iaq', 'air', 'IAQ Test', ms.iaq) +
-      moduleRow('#/eval/' + ev.id + '/caz', 'flame', 'Combustion Safety', ms.caz) +
-      moduleRow('#/eval/' + ev.id + '/site', 'home', 'Site Overview', ms.site) +
+      moduleRow('#/eval/' + ev.id + '/blower', 'wind', 'Blower Door Test', ms.blower, '', 'blower') +
+      moduleRow('#/eval/' + ev.id + '/iaq', 'air', 'IAQ Test', ms.iaq, '', 'iaq') +
+      moduleRow('#/eval/' + ev.id + '/caz', 'flame', 'Combustion Safety', ms.caz, '', 'caz') +
+      moduleRow('#/eval/' + ev.id + '/site', 'home', 'Site Overview', ms.site, '', 'site') +
 
       UI.sectionHeading('Mechanicals', 'boiler') +
       (function () {
@@ -239,7 +239,7 @@
   /* ---------------- Site Info & Building Science ---------------- */
   window.ScreenSite = function (ev) {
     var a = Store.ashrae(ev);
-    return UI.subbar('Site Info', '#/eval/' + ev.id + '/hub') +
+    return UI.subbar('Site Info', '#/eval/' + ev.id + '/hub', UI.guideBtn('site')) +
       '<div class="screen">' +
       '<span class="eyebrow">' + icon('sparkle') + ' Field Assessment</span>' +
       '<h1 class="screen-title">Site Info &amp; Building Science</h1>' +

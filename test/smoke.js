@@ -87,6 +87,9 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
 
   // --- Dashboard + calendar layout ---
   assert(await page.locator('.appt-card').count() >= 2, 'dashboard shows seeded schedule');
+  assert(await page.locator('.appbar [aria-label="Search evaluations"]').count() === 0, 'search icon removed from the top bar');
+  assert(await page.locator('.appbar [data-action="hcp-import"]').count() === 0, 'HCP import icon removed from the dashboard bar');
+  assert(await page.locator('.appbar .avatar').count() === 1, 'avatar/settings button still present');
   await page.click('[data-action="dash-view"][data-view="cal"]');
   await page.waitForTimeout(400);
   const cal = await page.evaluate(() => ({
@@ -111,6 +114,19 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   await page.click('[data-action="create-eval"][data-start]');
   await page.waitForTimeout(400);
   assert((await body()).includes('Assessment Hub') || (await body()).includes('Blower Door Test'), 'hub renders after create');
+
+  // --- Diagnostics how-to guides (tap the ? icon on a section) ---
+  assert(await page.locator('.module-row .row-help').count() === 4, 'each diagnostics row carries a help icon');
+  await page.click('.row-help[data-route="#/guide/blower"]');
+  await page.waitForTimeout(400);
+  const gtxt = await body();
+  assert(gtxt.includes('Blower Door Test') && gtxt.includes('How-To Guide'), 'guide viewer opens from the hub');
+  assert(await page.locator('.guide-step').count() >= 6, 'blower guide lists the full procedure');
+  assert(gtxt.includes('depressurizes the house to -50 Pa'), 'guide intro explains the test');
+  await shot('00-guide-blower');
+  await page.click('[data-action="hist-back"].btn');
+  await page.waitForTimeout(400);
+  assert((await body()).includes('Assessment Hub'), 'guide closes back to the hub');
 
   // --- Site info ---
   await page.click('text=Site Overview');
@@ -251,12 +267,25 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   await page.waitForTimeout(300);
   assert(await page.locator('.pd-table tbody tr').count() === 4, 're-checking restores the measure');
 
-  // --- Template editor: customize, save, render, reset ---
+  // --- Template editor: visual/code views, customize, save, render, reset ---
   await page.click('[data-action="nav"][data-route="#/template"]');
   await page.waitForTimeout(400);
   txt = await body();
   assert(txt.includes('Proposal Template'), 'template editor opens');
   assert(txt.includes('Default design'), 'editor shows default status');
+  // Visual view is the default: rendered preview, no code textarea.
+  assert(await page.locator('.tpl-preview').count() === 1, 'visual view renders a preview by default');
+  assert(await page.locator('.tpl-editor').count() === 0, 'code textarea hidden in visual view');
+  assert(txt.includes('Home Performance Proposal'), 'visual preview renders the default design');
+  assert(txt.includes('Dr. Julian Voss'), 'visual preview uses live data from the open evaluation');
+  await shot('04a-template-visual');
+
+  // Switch to the code view for editing.
+  await page.click('[data-action="tpl-view"][data-view="code"]');
+  await page.waitForTimeout(300);
+  txt = await body();
+  assert(await page.locator('.tpl-editor').count() === 1, 'code view shows the HTML editor');
+  assert(await page.locator('.tpl-preview').count() === 0, 'preview hidden in code view');
   assert(txt.includes('{{customer.name}}'), 'token reference lists tokens');
   const defaultTpl = await page.inputValue('.tpl-editor');
   assert(defaultTpl.includes('{{fin.costFmt}}'), 'editor preloads the default template HTML');
@@ -270,6 +299,14 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   await page.click('[data-action="tpl-save"]');
   await page.waitForTimeout(400);
   assert((await body()).includes('Customized'), 'editor shows customized status after save');
+
+  // Unsaved-or-saved edits show in the visual view immediately.
+  await page.click('[data-action="tpl-view"][data-view="visual"]');
+  await page.waitForTimeout(300);
+  txt = await body();
+  assert(txt.includes('CUSTOM LAYOUT for Dr. Julian Voss'), 'visual view renders the custom template');
+  await page.click('[data-action="tpl-view"][data-view="code"]');
+  await page.waitForTimeout(300);
 
   await page.click('[data-action="tpl-preview"]');
   await page.waitForTimeout(500);
@@ -470,6 +507,39 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   await page.waitForTimeout(400);
   const cazName = await page.evaluate(() => Store.prompts('cazTests')[0].name);
   assert(cazName === 'Venting Test', 'CAZ wording reset restores the default');
+
+  // --- Diagnostics guide editor (admin) ---
+  await page.goto(APP + '#/admin/guides');
+  await page.waitForTimeout(400);
+  assert(await page.locator('[data-route^="#/admin/guide/"]').count() === 4, 'guides list shows the 4 diagnostics guides');
+  await page.goto(APP + '#/admin/guide/blower');
+  await page.waitForTimeout(400);
+  const stepsBefore = await page.locator('.guide-edit-step').count();
+  assert(stepsBefore === 8, 'blower guide editor lists the default 8 steps');
+  await page.fill('textarea[data-bind="admin.guides.0.steps.0.text"]', 'CUSTOM STEP: walk the house with the customer first.');
+  await page.fill('input[data-bind="admin.guides.0.pdf"]', 'https://example.com/blower-procedure.pdf');
+  await page.click('[data-action="guide-step-add"]');
+  await page.waitForTimeout(400);
+  assert(await page.locator('.guide-edit-step').count() === 9, 'add step appends a new step');
+  await shot('06b-guide-editor');
+  // Auditor view reflects the edits: custom step, PDF launcher, admin edit icon.
+  await page.goto(APP + '#/guide/blower');
+  await page.waitForTimeout(400);
+  txt = await body();
+  assert(txt.includes('CUSTOM STEP: walk the house'), 'guide viewer shows the edited step');
+  assert(await page.locator('a[href="https://example.com/blower-procedure.pdf"]').count() === 1, 'attached PDF gets a launch button');
+  assert(await page.locator('[data-route="#/admin/guide/blower"]').count() === 1, 'admins get an edit shortcut on the guide');
+  await page.goto(APP + '#/admin/guide/blower');
+  await page.waitForTimeout(400);
+  await page.locator('.guide-edit-step').last().locator('[data-action="guide-step-remove"]').click();
+  await page.waitForTimeout(400);
+  assert(await page.locator('.guide-edit-step').count() === 8, 'remove step deletes it');
+  await page.click('[data-action="guide-reset"]');
+  await page.waitForTimeout(400);
+  const resetStep = await page.evaluate(() => Store.guide('blower').steps[0].text);
+  assert(resetStep.indexOf('Walk the house first') === 0 && resetStep.indexOf('CUSTOM') < 0, 'guide reset restores default steps');
+  const pdfCleared = await page.evaluate(() => Store.guide('blower').pdf);
+  assert(pdfCleared === '', 'guide reset clears the attached PDF');
 
   // Config persists across reload; export/import round-trips
   await page.reload();

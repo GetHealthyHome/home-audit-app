@@ -34,7 +34,7 @@
         '<span class="req-flag" style="background:' + (p.required ? 'var(--green)' : 'var(--faint)') + '">' + (p.required ? 'REQUIRED' : 'OPTIONAL') + '</span></button>';
     }).join('') + '</div>';
 
-    return UI.subbar('Blower Door', '#/eval/' + ev.id + '/hub') +
+    return UI.subbar('Blower Door', '#/eval/' + ev.id + '/hub', UI.guideBtn('blower')) +
       '<div class="screen">' +
       '<h1 class="screen-title">Blower Door &amp; Safety</h1>' +
       '<p class="screen-sub">Complete the setup checklist to unlock technical measurements</p>' +
@@ -94,7 +94,7 @@
         '</div>';
     }).join('');
 
-    return UI.subbar('Combustion Safety', '#/eval/' + ev.id + '/hub') +
+    return UI.subbar('Combustion Safety', '#/eval/' + ev.id + '/hub', UI.guideBtn('caz')) +
       '<div class="screen">' +
       '<div class="card"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">' +
       '<div><b style="color:var(--green);font-size:16px">Safety Protocol Analysis</b>' +
@@ -183,7 +183,39 @@
         '<button class="btn secondary" data-action="iaq-reset">Retest (Discard Data)</button></div>';
     }
 
-    return UI.subbar('IAQ Test', '#/eval/' + ev.id + '/hub') +
+    return UI.subbar('IAQ Test', '#/eval/' + ev.id + '/hub', UI.guideBtn('iaq')) +
       '<div class="screen">' + body + '</div>';
+  };
+
+  /* ---------------- Diagnostics how-to guide viewer ---------------- */
+  window.ScreenGuide = function (id) {
+    var g = Store.guide(id);
+    if (!g) {
+      return UI.subbar('Guide', '#/dashboard') +
+        '<div class="screen"><div class="empty">' + icon('info') + '<b>Guide not found</b></div></div>';
+    }
+
+    var steps = (g.steps || []).map(function (s, i) {
+      return '<div class="guide-step"><span class="gnum">' + (i + 1) + '</span>' +
+        '<div class="gbody"><p>' + esc(s.text) + '</p>' +
+        (s.photo ? '<img class="gphoto" src="' + esc(s.photo) + '" alt="Step ' + (i + 1) + ' reference photo" loading="lazy">' : '') +
+        '</div></div>';
+    }).join('');
+
+    return '<header class="appbar subpage">' +
+      '<button class="iconbtn" data-action="hist-back" aria-label="Back">' + icon('back') + '</button>' +
+      '<div class="title">How-To Guide</div><div class="spacer"></div>' +
+      (Auth.isAdmin() ? '<button class="iconbtn" data-action="nav" data-route="#/admin/guide/' + esc(g.id) + '" aria-label="Edit guide">' + icon('edit') + '</button>' : '') +
+      '</header>' +
+      '<div class="screen">' +
+      '<span class="eyebrow blue">' + icon(g.icon || 'info') + ' Field Procedure</span>' +
+      '<h1 class="screen-title">' + esc(g.name) + '</h1>' +
+      (g.intro ? '<p class="screen-sub">' + esc(g.intro) + '</p>' : '') +
+      (g.pdf ? '<a class="btn secondary" style="margin-bottom:14px" href="' + esc(g.pdf) + '" target="_blank" rel="noopener">' + icon('doc') + ' Open PDF Guide</a>' : '') +
+      '<div class="card guide-card">' + steps +
+      ((g.steps || []).length ? '' : '<p class="hint">No steps written yet' + (Auth.isAdmin() ? ' — tap the edit icon above to write this guide.' : '.') + '</p>') +
+      '</div>' +
+      '<button class="btn primary" style="margin-top:14px" data-action="hist-back">Got it — back to the test</button>' +
+      '</div>';
   };
 })();

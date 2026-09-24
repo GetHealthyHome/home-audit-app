@@ -311,6 +311,25 @@ select.input {
 .module-row .chev { color: var(--faint); font-size: 16px; }
 .module-row.locked { opacity: 0.55; }
 .module-row.locked .mic { background: var(--surface-3); color: var(--faint); }
+.module-row .row-help {
+  flex: none; width: 34px; height: 34px; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 17px;
+  background: var(--blue-soft); color: var(--blue-ink);
+}
+
+/* ---------- Diagnostics how-to guides ---------- */
+.guide-card { padding-top: 6px; }
+.guide-step { display: flex; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--border); }
+.guide-step:last-child { border-bottom: none; }
+.guide-step .gnum {
+  flex: none; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--green); color: #fff; display: inline-flex; align-items: center; justify-content: center;
+  font: 800 13px var(--font-display);
+}
+.guide-step .gbody { min-width: 0; flex: 1; }
+.guide-step .gbody p { margin: 2px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--ink); }
+.gphoto { width: 100%; border-radius: 10px; margin-top: 10px; border: 1px solid var(--border); display: block; }
+.guide-edit-step .gphoto { max-height: 180px; object-fit: cover; margin: 0 0 10px; }
 
 /* ---------- Schedule cards ---------- */
 .day-label { display: flex; align-items: center; gap: 12px; margin: 18px 0 10px;
@@ -612,6 +631,12 @@ select.input {
   white-space: pre; overflow-x: auto; -webkit-text-size-adjust: 100%;
 }
 .tpl-editor:focus { outline: 2px solid var(--green); }
+.tpl-preview {
+  border: 1.5px solid var(--border-strong); border-radius: var(--radius);
+  background: var(--surface-2); padding: 10px; max-height: 70vh; overflow-y: auto;
+}
+.tpl-preview .pd-page { margin: 0 0 14px; }
+.tpl-preview .pd-page:last-child { margin-bottom: 0; }
 .tok-list { display: flex; flex-direction: column; gap: 8px; }
 .tok-row code { display: block; font: 600 11px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--green-deep); background: var(--surface-2); border-radius: 6px; padding: 6px 8px; overflow-x: auto; white-space: nowrap; }
 .tok-row span { display: block; font-size: 11.5px; color: var(--muted); margin: 3px 0 0 2px; }
