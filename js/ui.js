@@ -62,6 +62,10 @@
           }).join('') + '</select>';
       } else {
         input = '<input' + attrs + '>';
+        if (opts.type === 'password') {
+          input = '<div class="pw-wrap">' + input +
+            '<button type="button" class="pw-eye" data-action="pw-toggle" aria-label="Show password">' + icon('eye') + '</button></div>';
+        }
       }
       if (opts.unit) input = '<div class="input-row">' + input + '<span class="unit">' + esc(opts.unit) + '</span></div>';
       return '<div class="field"><label>' + esc(opts.label) +

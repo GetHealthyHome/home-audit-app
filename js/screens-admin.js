@@ -112,7 +112,7 @@
       '<div class="card">' + UI.sectionHeading('Add Crew Member', 'plus') +
       UI.field({ label: 'Email', bind: 'crew.email', type: 'email', placeholder: 'crew@gethealthyhome.com', value: CrewDraft.email }) +
       UI.field({ label: 'Full Name', bind: 'crew.name', placeholder: 'Their name', value: CrewDraft.name }) +
-      UI.field({ label: 'Temporary Password', bind: 'crew.password', placeholder: 'They can change it in Settings', value: CrewDraft.password }) +
+      UI.field({ label: 'Temporary Password', bind: 'crew.password', type: 'password', placeholder: 'They can change it in Settings', value: CrewDraft.password }) +
       '<div class="field"><label>Role</label>' + UI.segmented('crew.role', ['auditor', 'admin'], CrewDraft.role || 'auditor') + '</div>' +
       '<button class="btn primary" data-action="crew-create" id="crew-create-btn">Create Account</button>' +
       '</div>' +

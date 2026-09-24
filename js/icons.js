@@ -13,6 +13,8 @@
     close: '<path d="M6 6l12 12M18 6L6 18"/>',
     camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.2"/>',
     check: '<path d="m5 13 4.5 4.5L19 7"/>',
+    eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+    eyeOff: '<path d="M2.5 12S6 5.5 12 5.5c1.6 0 3 .4 4.3 1.1M21.5 12S18 18.5 12 18.5c-1.6 0-3-.4-4.3-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M4 20 20 4"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>',
     chevR: '<path d="m9 5 7 7-7 7"/>',
     chevD: '<path d="m6 9 6 6 6-6"/>',

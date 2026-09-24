@@ -514,6 +514,26 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   assert((await body()).includes('Test Connection'), 'settings offers a backend connection test');
   assert((await body()).includes('xeiyzuolymbytegenevi.supabase.co'), 'settings shows the configured backend host');
 
+  // --- Password visibility toggle ---
+  await page.goto(APP + '#/login');
+  await page.waitForTimeout(400);
+  const pw = page.locator('input[data-bind="login.password"]');
+  assert(await pw.getAttribute('type') === 'password', 'password field starts masked');
+  await pw.fill('secret123');
+  await page.click('.pw-wrap:has(input[data-bind="login.password"]) .pw-eye');
+  await page.waitForTimeout(150);
+  assert(await pw.getAttribute('type') === 'text', 'eye toggle reveals the password');
+  assert(await pw.inputValue() === 'secret123', 'typed value survives the toggle');
+  await page.click('.pw-wrap:has(input[data-bind="login.password"]) .pw-eye');
+  await page.waitForTimeout(150);
+  assert(await pw.getAttribute('type') === 'password', 'second tap re-masks the password');
+  await page.goto(APP + '#/settings');
+  await page.waitForTimeout(400);
+  assert(await page.locator('.pw-wrap:has(input[data-bind="login.newPassword"]) .pw-eye').count() === 1, 'change-password field has the eye toggle');
+  await page.goto(APP + '#/admin/crew');
+  await page.waitForTimeout(600);
+  assert(await page.locator('.pw-wrap:has(input[data-bind="crew.password"]) .pw-eye').count() === 1, 'crew temp-password field has the eye toggle');
+
   if (errors.length) throw new Error('Console/page errors:\n' + errors.join('\n'));
   console.log('\nALL SMOKE TESTS PASSED');
   await browser.close();
