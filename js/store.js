@@ -18,6 +18,7 @@
       synced: false,
       appointment: { date: new Date().toISOString().slice(0, 10), time: '', type: 'Evaluation', state: 'Confirmed' },
       customer: customer || { name: '', address: '', phone: '', email: '' },
+      assignedTo: { email: '', name: '' }, // the auditor who owns this evaluation
       intake: { motivation: '', heatType: '' },
       site: { yearBuilt: '', stories: '1.0', sqft: '', bedrooms: '', notes: '' },
       zones: {}, // zoneId -> zone data (created lazily)
@@ -207,10 +208,30 @@
     createEval: function (customer, appointment) {
       var ev = blankEvaluation(customer);
       if (appointment) Object.assign(ev.appointment, appointment);
+      var sess = window.Auth && Auth.session();
+      ev.assignedTo = {
+        email: (sess && sess.user.email) || '',
+        name: (sess && (sess.user.name || sess.user.email)) || state.auditor.name || ''
+      };
       state.evaluations[ev.id] = ev;
       state.activeEvalId = ev.id;
       save();
       return ev;
+    },
+
+    /* Role scoping: admins see every evaluation; a signed-in auditor sees
+       only their own customers (plus unassigned/legacy ones). Offline or
+       signed out, the device's local data is all visible. */
+    canSee: function (ev) {
+      if (!ev) return false;
+      if (!window.Auth || !window.Backend || !Backend.ready() || !Auth.signedIn() || Auth.isAdmin()) return true;
+      var a = ev.assignedTo;
+      if (!a || !a.email) return true;
+      var me = (Auth.session().user.email || '').toLowerCase();
+      return a.email.toLowerCase() === me;
+    },
+    visibleEvals: function () {
+      return Store.listEvals().filter(Store.canSee);
     },
     deleteEval: function (id) {
       var ev = state.evaluations[id];

@@ -258,6 +258,12 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   assert((await body()).includes('Test Complete'), 'IAQ results entry after window elapses');
   const iaqInputs = await page.locator('input[data-bind^="tests.iaq."]').count();
   assert(iaqInputs === 7, 'all 7 IAQ result fields present');
+  // Regression: results entry used to re-render every second (countdown tick
+  // with an elapsed window), flinging the scroll back to the top mid-typing.
+  await page.evaluate(() => window.scrollTo(0, 400));
+  await page.waitForTimeout(2600);
+  const iaqScroll = await page.evaluate(() => window.scrollY);
+  assert(iaqScroll > 200, 'IAQ results entry holds its scroll position (' + iaqScroll + 'px after 2.6s)');
   await page.fill('[data-bind="tests.iaq.co2"]', '412');
   await page.fill('[data-bind="tests.iaq.voc"]', '0.2');
   await page.waitForTimeout(800);
@@ -884,6 +890,66 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   await page.goto(APP + '#/admin/crew');
   await page.waitForTimeout(600);
   assert(await page.locator('.pw-wrap:has(input[data-bind="crew.password"]) .pw-eye').count() === 1, 'crew temp-password field has the eye toggle');
+
+  // --- Evaluation details: edit everything captured at creation ---
+  await page.goto(APP + '#/eval/' + evId + '/hub');
+  await page.waitForTimeout(400);
+  assert(await page.locator('[data-route="#/eval/' + evId + '/details"]').count() === 1, 'hub offers an edit-details button');
+  await page.click('[data-route="#/eval/' + evId + '/details"]');
+  await page.waitForTimeout(800); // roster fetch fails offline → free-text fallback
+  const detTxt = await body();
+  assert(detTxt.includes('Evaluation Details') && detTxt.includes('Customer Information') && detTxt.includes('Assigned Auditor'), 'details screen renders all sections');
+  assert(await page.inputValue('input[data-bind="customer.name"]') === 'Dr. Julian Voss', 'customer fields prefill from the evaluation');
+  await page.fill('input[data-bind="customer.name"]', 'Dr. Julian Voss-Chen');
+  await page.fill('input[data-bind="appointment.date"]', '2026-10-02');
+  await page.selectOption('select[data-bind="intake.heatType"]', 'Heat Pump');
+  await page.waitForTimeout(400);
+  const editedEv = await page.evaluate(() => {
+    const e = Store.activeEval();
+    return { name: e.customer.name, date: e.appointment.date, heat: e.intake.heatType };
+  });
+  assert(editedEv.name === 'Dr. Julian Voss-Chen' && editedEv.date === '2026-10-02' && editedEv.heat === 'Heat Pump', 'edited creation data writes through');
+  assert(await page.locator('input[data-bind="assignedTo.name"]').count() === 1, 'auditor reassignment falls back to free-text offline');
+  await page.fill('input[data-bind="assignedTo.email"]', 'other@crew.dev');
+  await page.fill('input[data-bind="assignedTo.name"]', 'Other Tech');
+  await page.waitForTimeout(300);
+  await shot('07-eval-details');
+  await page.goto(APP + '#/eval/' + evId + '/hub');
+  await page.waitForTimeout(400);
+  assert((await body()).includes('Auditor: Other Tech'), 'hub shows the assigned auditor');
+
+  // --- Visibility: admins see everything, auditors only their customers ---
+  const visAdmin = await page.evaluate((id) => ({
+    role: Store.state.session.user.role,
+    sees: Store.visibleEvals().some(e => e.id === id)
+  }), evId);
+  assert(visAdmin.role === 'admin' && visAdmin.sees, 'admin sees an evaluation assigned to someone else');
+  await page.evaluate(() => { Store.state.session.user.role = 'auditor'; Store.save(); });
+  const visAud = await page.evaluate((id) => ({
+    sees: Store.visibleEvals().some(e => e.id === id),
+    others: Store.visibleEvals().length
+  }), evId);
+  assert(!visAud.sees, 'auditor no longer sees another auditor’s customer');
+  assert(visAud.others >= 2, 'unassigned evaluations stay visible to all crew');
+  await page.goto(APP + '#/dashboard');
+  await page.waitForTimeout(400);
+  assert(!(await body()).includes('Voss-Chen'), 'dashboard hides the other auditor’s customer');
+  await page.goto(APP + '#/eval/' + evId + '/hub');
+  await page.waitForTimeout(500);
+  assert((await page.evaluate(() => location.hash)) === '#/dashboard', 'direct link to a hidden evaluation bounces to the dashboard');
+  // The auditor the eval IS assigned to sees it.
+  await page.evaluate(() => { Store.state.session.user.email = 'other@crew.dev'; Store.save(); });
+  assert(await page.evaluate((id) => Store.visibleEvals().some(e => e.id === id), evId), 'the assigned auditor sees their customer');
+  // Restore the admin session + original assignment for the remaining tests.
+  await page.evaluate(() => {
+    Store.state.session.user.email = 'crew@test.dev';
+    Store.state.session.user.role = 'admin';
+    const e = Store.state.evaluations[Store.state.activeEvalId];
+    e.assignedTo = { email: 'crew@test.dev', name: 'Test Crew' };
+    e.customer.name = 'Dr. Julian Voss';
+    Store.save(); window.rerender();
+  });
+  await page.waitForTimeout(300);
 
   // --- Customer proposal deck (deck.html, mocked edge function) ---
   const deckData = {

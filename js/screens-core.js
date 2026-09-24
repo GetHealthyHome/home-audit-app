@@ -83,7 +83,7 @@
 
   window.ScreenDashboard = function (view, calMonth, calSelected) {
     view = view || 'list';
-    var evals = Store.listEvals();
+    var evals = Store.visibleEvals();
     var open = evals.filter(function (e) { return e.status !== 'complete'; });
     var next = open.filter(function (e) { return e.appointment.time; })[0];
 
@@ -122,7 +122,7 @@
     if (!box) return;
     q = q.trim().toLowerCase();
     if (!q) { box.innerHTML = ''; return; }
-    var hits = Store.listEvals().filter(function (e) {
+    var hits = Store.visibleEvals().filter(function (e) {
       return (e.customer.name || '').toLowerCase().indexOf(q) >= 0;
     }).slice(0, 5);
     box.innerHTML = hits.map(function (e) {
@@ -166,6 +166,72 @@
   var draft = {};
   window.NewEvalDraft = draft;
 
+  /* ---------------- Evaluation Details (edit after creation) ---------------- */
+  window.RosterCache = { list: null, loading: false, error: null };
+
+  window.ScreenEvalDetails = function (ev) {
+    // Load the crew roster once so the evaluation can be reassigned by
+    // picking a sign-in; falls back to free-text fields offline.
+    if (Backend.ready() && Auth.signedIn() && !RosterCache.list && !RosterCache.loading && !RosterCache.error) {
+      RosterCache.loading = true;
+      Backend.profiles().then(function (list) {
+        RosterCache.list = list; RosterCache.loading = false; window.rerender();
+      }).catch(function (e) {
+        RosterCache.error = e.message || 'offline'; RosterCache.loading = false; window.rerender();
+      });
+    }
+
+    var a = ev.assignedTo || {};
+    var assign;
+    if (RosterCache.list && RosterCache.list.length) {
+      assign = '<div class="field"><label>Assigned Auditor</label>' +
+        '<select class="input" id="assign-auditor-select">' +
+        '<option value=""' + (a.email ? '' : ' selected') + '>Unassigned — visible to all crew</option>' +
+        RosterCache.list.map(function (u) {
+          return '<option value="' + esc(u.email) + '"' +
+            (a.email && u.email.toLowerCase() === a.email.toLowerCase() ? ' selected' : '') + '>' +
+            esc(u.name || u.email) + ' (' + esc(u.role) + ')</option>';
+        }).join('') + '</select></div>';
+    } else {
+      assign = (RosterCache.loading ? '<p class="hint">Loading crew roster…</p>' : '') +
+        UI.field({ label: 'Auditor Name', bind: 'assignedTo.name', value: a.name, placeholder: 'e.g. Alex Tech' }) +
+        UI.field({ label: 'Auditor Sign-In Email', bind: 'assignedTo.email', type: 'email', value: a.email, placeholder: 'alex@company.com' });
+    }
+
+    return UI.subbar('Evaluation Details', '#/eval/' + ev.id + '/hub') +
+      '<div class="screen">' +
+      '<span class="eyebrow">' + icon('edit') + ' Editable Record</span>' +
+      '<h1 class="screen-title">Evaluation Details</h1>' +
+      '<p class="screen-sub">Everything captured when this evaluation was created. Changes save automatically and apply everywhere — proposals, the schedule, and sync.</p>' +
+
+      '<div class="card">' +
+      '<h3>Customer Information</h3>' +
+      UI.field({ label: 'Full Name', bind: 'customer.name', required: true, value: ev.customer.name }) +
+      UI.field({ label: 'Service Address', bind: 'customer.address', required: true, value: ev.customer.address }) +
+      UI.field({ label: 'Phone Number', bind: 'customer.phone', type: 'tel', value: ev.customer.phone }) +
+      UI.field({ label: 'Email Address', bind: 'customer.email', type: 'email', value: ev.customer.email }) +
+      '</div>' +
+
+      '<div class="card">' +
+      '<h3>Visit</h3>' +
+      UI.segmented('appointment.type', ['Evaluation', 'Estimate'], ev.appointment.type || 'Evaluation') +
+      '<div style="height:12px"></div>' +
+      UI.field({ label: 'Date', bind: 'appointment.date', type: 'date', value: ev.appointment.date }) +
+      UI.field({ label: 'Time', bind: 'appointment.time', type: 'time', value: ev.appointment.time }) +
+      UI.field({ label: 'Primary Motivation', bind: 'intake.motivation', options: Store.prompts('motivations'), value: ev.intake.motivation }) +
+      UI.field({ label: 'Heating System Type', bind: 'intake.heatType', options: Store.prompts('heatTypes'), value: ev.intake.heatType }) +
+      '</div>' +
+
+      '<div class="card">' +
+      '<h3>Assigned Auditor</h3>' +
+      '<p class="hint">Admins see every evaluation; auditors see only the evaluations assigned to them (unassigned ones are visible to all crew).</p>' +
+      assign +
+      '</div>' +
+
+      '<button class="btn primary" data-action="nav" data-route="#/eval/' + ev.id + '/hub">Done — back to the assessment</button>' +
+      '</div>';
+  };
+
   /* ---------------- Assessment Hub ---------------- */
   window.ScreenHub = function (ev) {
     var ms = Store.moduleStatus(ev);
@@ -193,8 +259,11 @@
       '<div class="screen">' +
       '<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">' +
       '<div><b style="display:flex;align-items:center;gap:6px">' + icon('pin') + esc(ev.customer.address || 'No address') + '</b>' +
-      '<p class="hint" style="margin:6px 0 0">Customer: ' + esc(ev.customer.name || '—') + '</p></div>' +
-      UI.pill(ev.status === 'complete' ? 'complete' : 'progress') + '</div></div>' +
+      '<p class="hint" style="margin:6px 0 0">Customer: ' + esc(ev.customer.name || '—') +
+      (ev.assignedTo && ev.assignedTo.name ? ' · Auditor: ' + esc(ev.assignedTo.name) : '') + '</p></div>' +
+      '<div style="display:flex;gap:8px;align-items:center">' +
+      '<button class="iconbtn" data-action="nav" data-route="#/eval/' + ev.id + '/details" aria-label="Edit evaluation details">' + icon('edit') + '</button>' +
+      UI.pill(ev.status === 'complete' ? 'complete' : 'progress') + '</div></div></div>' +
 
       '<div class="card">' + UI.sectionHeading('Visit Notes', 'clipboard') +
       UI.field({ label: 'Team notes about this customer (internal)', bind: 'notes.team', textarea: true,
@@ -293,7 +362,7 @@
   /* ---------------- History ---------------- */
   window.ScreenHistory = function (query) {
     query = (query || '').toLowerCase();
-    var evals = Store.listEvals();
+    var evals = Store.visibleEvals();
     var hits = evals.filter(function (e) {
       if (!query) return true;
       return (e.customer.name + ' ' + e.customer.address).toLowerCase().indexOf(query) >= 0;

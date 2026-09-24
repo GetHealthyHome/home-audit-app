@@ -167,6 +167,8 @@
           photo_count: ev.photos.length,
           payload: payload,
           share_token: ev.shareToken,
+          owner_email: (ev.assignedTo && ev.assignedTo.email) ||
+            ((window.Auth && Auth.session()) ? Auth.session().user.email : null) || null,
           updated_at: new Date().toISOString()
         }]
       }).then(function () {
