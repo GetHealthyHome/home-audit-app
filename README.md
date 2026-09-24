@@ -86,6 +86,16 @@ in the field.
 - **Calendar view** on the dashboard (month grid with appointment dots)
 - **Media review & tagging** (required-tag tracking), **audit history**,
   read-only **Assessment Record**, per-audit **JSON export**
+- **Photo stamping & tags** (Admin Portal → Media Settings) — an admin
+  toggle burns the **capture date/time and GPS longitude/latitude into the
+  lower-right corner** of every new photo (falls back to date/time-only
+  when location is unavailable; coordinates are also stored on the photo
+  record). A customizable **media tag list** (one per line) is offered in
+  a bottom sheet **right after taking a picture in any section** and again
+  in Media Review. Every **required photo slot carries a unique ID**
+  (e.g. `BLOWER-SETUP`, `ATTIC-MEDIA-1`) shown on the slot, on media
+  tiles, and in the proposal's figure captions — tracing each proposal
+  figure back to where it was captured in the assessment.
 - **Cloud sync** to Supabase — offline-first with resumable photo upload and
   automatic retry on reconnect. **Crew roles**: every account is an `admin`
   or `auditor` (public.profiles, created by trigger on signup). Admin-only

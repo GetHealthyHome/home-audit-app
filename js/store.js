@@ -117,7 +117,9 @@
   }
 
   /* Downscale to keep storage lean while staying legible as evidence. */
-  function downscale(file) {
+  /* Downscale a capture; when stamp lines are given, burn them into the
+     lower-right corner (date/time + GPS) before encoding. */
+  function downscale(file, stampLines) {
     return new Promise(function (res, rej) {
       var img = new Image();
       var url = URL.createObjectURL(file);
@@ -127,13 +129,54 @@
         var canvas = document.createElement('canvas');
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        if (stampLines && stampLines.length) {
+          var pad = Math.max(6, Math.round(canvas.width * 0.014));
+          var fs = Math.max(11, Math.round(canvas.width * 0.024));
+          var lh = Math.round(fs * 1.4);
+          ctx.font = '600 ' + fs + 'px ui-monospace, SFMono-Regular, Menlo, monospace';
+          var w = 0;
+          stampLines.forEach(function (l) { w = Math.max(w, ctx.measureText(l).width); });
+          var boxW = Math.ceil(w) + pad * 2;
+          var boxH = lh * stampLines.length + pad;
+          var x = canvas.width - boxW - pad;
+          var y = canvas.height - boxH - pad;
+          ctx.fillStyle = 'rgba(10,14,12,0.6)';
+          ctx.fillRect(x, y, boxW, boxH);
+          ctx.fillStyle = '#fff';
+          ctx.textAlign = 'right';
+          ctx.textBaseline = 'top';
+          stampLines.forEach(function (l, i) {
+            ctx.fillText(l, canvas.width - pad * 2, y + Math.round(pad / 2) + i * lh);
+          });
+        }
         URL.revokeObjectURL(url);
         res(canvas.toDataURL('image/jpeg', 0.72));
       };
       img.onerror = function () { URL.revokeObjectURL(url); rej(new Error('bad image')); };
       img.src = url;
     });
+  }
+
+  /* Best-effort device position for the photo stamp; resolves null rather
+     than rejecting so a denied permission never blocks the capture. */
+  function currentPosition() {
+    return new Promise(function (res) {
+      if (!navigator.geolocation) return res(null);
+      try {
+        navigator.geolocation.getCurrentPosition(
+          function (pos) { res({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+          function () { res(null); },
+          { enableHighAccuracy: true, timeout: 4000, maximumAge: 60000 }
+        );
+      } catch (e) { res(null); }
+    });
+  }
+
+  function fmtCoords(lat, lng) {
+    return Math.abs(lat).toFixed(4) + '° ' + (lat >= 0 ? 'N' : 'S') + ', ' +
+      Math.abs(lng).toFixed(4) + '° ' + (lng >= 0 ? 'E' : 'W');
   }
 
   /* ---------- Public API ---------- */
@@ -227,12 +270,25 @@
       });
     },
     addPhoto: function (ev, meta, file) {
-      return downscale(file).then(function (dataUrl) {
-        var p = Object.assign({ id: uid('ph'), ts: new Date().toISOString(), inspector: state.auditor.name || 'Field Auditor' }, meta);
-        photoCache[p.id] = dataUrl;
-        ev.photos.push(p);
-        save();
-        return idbPut(p.id, dataUrl).then(function () { return p; });
+      var stampOn = Store.photoStampOn();
+      var geo = stampOn ? currentPosition() : Promise.resolve(null);
+      return geo.then(function (pos) {
+        var now = new Date();
+        var stampLines = null;
+        if (stampOn) {
+          stampLines = [
+            now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            pos ? fmtCoords(pos.lat, pos.lng) : 'GPS unavailable'
+          ];
+        }
+        return downscale(file, stampLines).then(function (dataUrl) {
+          var p = Object.assign({ id: uid('ph'), ts: now.toISOString(), inspector: state.auditor.name || 'Field Auditor', tags: [] }, meta);
+          if (pos) { p.lat = pos.lat; p.lng = pos.lng; }
+          photoCache[p.id] = dataUrl;
+          ev.photos.push(p);
+          save();
+          return idbPut(p.id, dataUrl).then(function () { return p; });
+        });
       });
     },
     removePhoto: function (ev, photoId) {
@@ -292,6 +348,21 @@
     },
     materials: function () {
       return (state.admin && state.admin.materials) || DATA.MATERIALS;
+    },
+    photoStampOn: function () {
+      return !!(state.admin && state.admin.media && state.admin.media.stamp);
+    },
+    mediaTags: function () {
+      var m = state.admin && state.admin.media;
+      return m && m.tags != null
+        ? String(m.tags).split('\n').map(function (s) { return s.trim(); }).filter(Boolean)
+        : DATA.MEDIA_TAGS;
+    },
+    /* Stable identifier for a required photo: names the slot it fills and,
+       once the photo is in the proposal, appears in its figure caption. */
+    photoRef: function (p) {
+      if (!p || !p.required || !p.slotKey) return null;
+      return String(p.slotKey).toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     },
     guides: function () {
       return (state.admin && state.admin.guides) || DATA.TEST_GUIDES;

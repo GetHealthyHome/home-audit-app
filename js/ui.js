@@ -103,8 +103,10 @@
       var existing = ev.photos.filter(function (p) { return p.slotKey === slot.key; })[0];
       var url = existing && Store.photoUrl(existing.id);
       if (existing && url) {
+        var ref = Store.photoRef(existing);
         return '<div class="photo-slot filled">' +
           '<img src="' + url + '" alt="' + esc(slot.label) + '">' +
+          (ref ? '<span class="ref-badge" title="Proposal photo ID">' + esc(ref) + '</span>' : '') +
           '<span class="req-flag">' + esc(slot.label) + '</span>' +
           '<button class="retake" data-action="photo-remove" data-photo="' + existing.id + '" aria-label="Remove photo">' + icon('trash') + '</button>' +
           '</div>';
@@ -169,6 +171,38 @@
       t.classList.add('show');
       clearTimeout(t._h);
       t._h = setTimeout(function () { t.classList.remove('show'); }, 2600);
+    },
+
+    /* Bottom sheet offered right after any photo capture: toggle admin-
+       defined media tags on the new photo. Lives outside #app so screen
+       re-renders don't tear it down; buttons use the delegated actions. */
+    tagSheet: function (ev, photoId) {
+      var p = ev.photos.filter(function (x) { return x.id === photoId; })[0];
+      if (!p) return;
+      var tags = Store.mediaTags();
+      if (!tags.length) return;
+      var ref = Store.photoRef(p);
+      var sheet = document.getElementById('tag-sheet');
+      if (!sheet) {
+        sheet = document.createElement('div');
+        sheet.id = 'tag-sheet';
+        document.body.appendChild(sheet);
+      }
+      sheet.innerHTML = '<div class="sheet-card">' +
+        '<b>Tag this photo</b>' +
+        '<p class="hint">' + esc(p.label || 'Photo') + (ref ? ' · <code>' + esc(ref) + '</code>' : '') + '</p>' +
+        '<div class="filter-chips" style="margin:10px 0 12px">' + tags.map(function (t) {
+          var on = (p.tags || []).indexOf(t) >= 0;
+          return '<button class="chip ' + (on ? 'on' : '') + '" data-action="sheet-tag-toggle"' +
+            ' data-photo="' + esc(p.id) + '" data-tag="' + esc(t) + '">' + esc(t) + '</button>';
+        }).join('') + '</div>' +
+        '<button class="btn small primary" data-action="sheet-close">Done</button>' +
+        '</div>';
+    },
+
+    closeTagSheet: function () {
+      var sheet = document.getElementById('tag-sheet');
+      if (sheet) sheet.parentNode.removeChild(sheet);
     },
 
     /* Hidden file input used by all capture actions. */

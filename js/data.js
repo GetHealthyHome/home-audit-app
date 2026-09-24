@@ -240,6 +240,13 @@ window.DATA = {
     { id: 'mat-trip', name: 'Trip / Setup Charge', unit: 'flat', cost: 150 }
   ],
 
+  /* ---- Media tag defaults (admin-editable) ----
+     Offered right after any photo capture and in Media Review. */
+  MEDIA_TAGS: [
+    'Damage', 'Moisture', 'Mold Risk', 'Air Leak', 'Insulation Gap',
+    'Combustion', 'Electrical', 'Thermal Scan', 'Before', 'After', 'Customer Concern'
+  ],
+
   /* ---- Diagnostics how-to guides (admin-editable) ----
      Opened from the help icon on each test screen. Steps can carry a photo
      URL; a guide can also attach a PDF that opens in a new tab. */

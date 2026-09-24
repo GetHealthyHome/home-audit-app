@@ -161,7 +161,10 @@
       var photos = (ev.proposalMedia || []).map(function (id) {
         var p = ev.photos.filter(function (x) { return x.id === id; })[0];
         var url = p && Store.photoUrl(p.id);
-        return url ? { url: url, label: p.label || 'Site photo', zone: p.zone || '' } : null;
+        return url ? {
+          url: url, label: p.label || 'Site photo', zone: p.zone || '',
+          ref: Store.photoRef(p) || '', tags: (p.tags || []).join(' · ')
+        } : null;
       }).filter(Boolean);
 
       var rebates = fin.items.filter(function (i) { return i.measure.rebate; })
@@ -284,7 +287,7 @@
       [' {{costFmt}} {{savingsFmt}} {{roi}} {{rebate}}', 'Measure financials'],
       [' {{baseFmt}} · {{#each adjustments}} {{label}} {{amountFmt}} {{/each}}', 'Base cost and audit-driven pricing adjustments'],
       [' {{{scienceHtml}}} · {{benefitsJoined}}', 'Science paragraph (HTML) and benefits'],
-      ['{{#each photos}} {{url}} {{label}} {{@num}} {{/each}}', 'Selected site photos'],
+      ['{{#each photos}} {{url}} {{label}} {{ref}} {{tags}} {{@num}} {{/each}}', 'Selected site photos (ref = required-slot ID, tags = media tags)'],
       ['{{#if energy}} {{energy.location}} {{energy.hdd}} {{energy.totalCostFmt}} {{energy.pctOfSpend}} {{/if}}', 'Energy model (when run)'],
       ['{{#if x}} … {{else}} … {{/if}}', 'Show content only when a value exists']
     ]
@@ -337,7 +340,7 @@
 '  <div class="pd-brand"><span class="logo">{{{brandIcon}}}</span> {{company}}</div>',
 '  <h2>What We Found In Your Home</h2>',
 '  <p style="font-size:13px;color:var(--muted)">Photos captured during your assessment on {{assessmentDate}}.</p>',
-'  <div class="pd-gallery">{{#each photos}}<figure><img src="{{url}}" alt="{{label}}"><figcaption>Fig {{@num}}: {{label}}</figcaption></figure>{{/each}}</div>',
+'  <div class="pd-gallery">{{#each photos}}<figure><img src="{{url}}" alt="{{label}}"><figcaption>Fig {{@num}}: {{label}}{{#if ref}} <span class="pd-ref">{{ref}}</span>{{/if}}</figcaption></figure>{{/each}}</div>',
 '</section>{{/if}}',
 '',
 '<section class="pd-page">',

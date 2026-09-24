@@ -65,6 +65,17 @@
       return q ? q.label : ref;
     },
 
+    /* Media settings: photo stamping + the tag list offered after capture.
+       tags is a one-per-line string (same pattern as prompts.motivations). */
+    ensureMedia: function () {
+      var a = ensureAdmin();
+      if (!a.media) {
+        a.media = { stamp: false, tags: DATA.MEDIA_TAGS.join('\n') };
+        Store.save();
+      }
+      return a.media;
+    },
+
     /* Seed the editable diagnostics guides from defaults on first entry. */
     ensureGuides: function () {
       var a = ensureAdmin();

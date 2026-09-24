@@ -13,7 +13,11 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
 (async () => {
   const browser = await chromium.launch(
     process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const page = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    geolocation: { latitude: 44.0521, longitude: -123.0868 },
+    permissions: ['geolocation']
+  });
   const errors = [];
   page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
   page.on('console', m => { if (m.type() === 'error' && m.text().indexOf('Failed to load resource') < 0) errors.push('CONSOLE: ' + m.text()); });
@@ -138,6 +142,21 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   await page.click('text=Save & Return to Hub');
   await page.waitForTimeout(300);
 
+  // --- Media settings: turn on the date/GPS photo stamp via the admin toggle ---
+  await page.goto(APP + '#/admin/media');
+  await page.waitForTimeout(400);
+  const msTxt = await body();
+  assert(msTxt.includes('Photo Stamp') && msTxt.includes('Media Tags') && msTxt.includes('Required Photo IDs'), 'media settings screen renders its three cards');
+  assert(!(await page.evaluate(() => Store.photoStampOn())), 'photo stamp defaults to off');
+  await page.click('[data-action="admin-stamp-toggle"]');
+  await page.waitForTimeout(300);
+  assert(await page.evaluate(() => Store.photoStampOn()), 'stamp toggle turns stamping on');
+  assert((await body()).includes('Applies to photos taken from now on'), 'stamp hint appears when on');
+  assert((await body()).includes('Moisture'), 'default media tags listed');
+  await shot('02a-admin-media');
+  await page.goto(APP + '#/assess');
+  await page.waitForTimeout(400);
+
   // --- Blower door (unlocks recommendations) ---
   await page.click('text=Blower Door Test');
   await page.waitForTimeout(300);
@@ -146,12 +165,60 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   for (let i = 0; i < n; i++) { await checks.nth(i).click(); await page.waitForTimeout(120); }
   await page.fill('.metric-display input', '2340');
   await page.click('[data-action="blower-photo"][data-pid="setup"]');
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(800);
+  // The tag sheet opens after every capture: tag this photo, then close.
+  assert(await page.locator('#tag-sheet .sheet-card').count() === 1, 'tag sheet opens after capture');
+  assert((await page.textContent('#tag-sheet')).includes('BLOWER-SETUP'), 'tag sheet shows the required-photo ID');
+  await page.click('#tag-sheet .chip:has-text("Moisture")');
+  await page.waitForTimeout(200);
+  await page.click('[data-action="sheet-close"]');
+  await page.waitForTimeout(300);
+  const stamped = await page.evaluate(() => {
+    const p = Store.activeEval().photos[Store.activeEval().photos.length - 1];
+    return { lat: p.lat, lng: p.lng, tags: p.tags, ref: Store.photoRef(p) };
+  });
+  assert(Math.abs(stamped.lat - 44.0521) < 0.001 && Math.abs(stamped.lng + 123.0868) < 0.001, 'capture records GPS coordinates for the stamp');
+  assert(stamped.tags.length === 1 && stamped.tags[0] === 'Moisture', 'tag picked in the sheet lands on the photo');
+  assert(stamped.ref === 'BLOWER-SETUP', 'required photo carries its unique proposal ID');
   await page.click('[data-action="blower-photo"][data-pid="manometer"]');
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(800);
+  await page.click('[data-action="sheet-close"]');
+  await page.waitForTimeout(300);
   await page.click('[data-action="blower-submit"]');
   await page.waitForTimeout(300);
   console.log('ok - blower door completed');
+  // Stamp burned into pixels: darker lower-right corner than an unstamped shot.
+  const stampPixel = await page.evaluate(() => new Promise(res => {
+    const url = Store.photoUrl(Store.activeEval().photos[0].id);
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+      const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+      const d = g.getImageData(img.width - 30, img.height - 20, 1, 1).data;
+      res({ r: d[0], g: d[1], b: d[2] });
+    };
+    img.src = url;
+  }));
+  assert(stampPixel.r < 100 && stampPixel.g < 110, 'stamp box is burned into the lower-right pixels');
+
+  // --- Media review: refs on tiles, admin tag list drives the chips ---
+  const mevId = await page.evaluate(() => Store.activeEval().id);
+  await page.goto(APP + '#/eval/' + mevId + '/media');
+  await page.waitForTimeout(400);
+  assert(await page.locator('.media-tile .ref-badge').count() >= 1, 'media tiles show required-photo IDs');
+  assert((await body()).includes('Moisture'), 'photo tags appear on the media tile');
+  await page.locator('.media-tile').first().click();
+  await page.waitForTimeout(300);
+  assert(await page.locator('.tag-editor .chip').count() >= 5, 'tag editor offers the admin tag list');
+  await page.click('.tag-editor .chip:has-text("Air Leak")');
+  await page.waitForTimeout(300);
+  const tagged = await page.evaluate(() => Store.activeEval().photos[0].tags);
+  assert(tagged.indexOf('Moisture') >= 0 && tagged.indexOf('Air Leak') >= 0, 'media review toggles tags on the photo');
+  await shot('02b-media-tags');
+  await page.click('[data-action="media-edit-done"]');
+  await page.waitForTimeout(200);
+  await page.goto(APP + '#/assess');
+  await page.waitForTimeout(400);
 
   // --- CAZ ---
   await page.click('text=Combustion Safety');
@@ -244,6 +311,7 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   assert(await page.locator('.pd-table tbody tr').count() === 4, 'investment table: 3 measures + total');
   assert(await page.locator('.pd-gallery figure').count() === 2, 'selected photos render in evidence section');
   assert(txt.includes('Fig 1:') && txt.includes('Fig 2:'), 'photo figures numbered');
+  assert(txt.includes('BLOWER-SETUP'), 'required-photo ID appears in the proposal figure caption');
   const totalBefore = await page.evaluate(() =>
     Store.financials(Store.activeEval(), Proposal.includedIds(Store.activeEval())).cost);
   await shot('02-proposal-default');
@@ -540,6 +608,17 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   assert(resetStep.indexOf('Walk the house first') === 0 && resetStep.indexOf('CUSTOM') < 0, 'guide reset restores default steps');
   const pdfCleared = await page.evaluate(() => Store.guide('blower').pdf);
   assert(pdfCleared === '', 'guide reset clears the attached PDF');
+
+  // --- Media tag list is admin-customizable ---
+  await page.goto(APP + '#/admin/media');
+  await page.waitForTimeout(400);
+  await page.fill('textarea[data-bind="admin.media.tags"]', 'Roof\nGutters\nSolar Ready');
+  await page.waitForTimeout(300);
+  const customTags = await page.evaluate(() => Store.mediaTags());
+  assert(customTags.length === 3 && customTags[0] === 'Roof' && customTags[2] === 'Solar Ready', 'edited tag list drives the offered tags');
+  await page.click('[data-action="admin-media-tags-reset"]');
+  await page.waitForTimeout(300);
+  assert((await page.evaluate(() => Store.mediaTags())).indexOf('Moisture') >= 0, 'tag reset restores the default list');
 
   // Config persists across reload; export/import round-trips
   await page.reload();
