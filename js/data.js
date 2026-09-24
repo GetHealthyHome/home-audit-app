@@ -156,16 +156,25 @@ window.DATA = {
       bands: [{ max: 0.3, label: 'Excellent', tone: 'good' }, { max: 0.5, label: 'Acceptable', tone: 'ok' }, { max: Infinity, label: 'Elevated', tone: 'bad' }] }
   ],
 
-  /* ---- Improvement catalog (Est. ROI and copy from the Figma catalog) ---- */
+  /* ---- Improvement catalog (Est. ROI and copy from the Figma catalog) ----
+     `suggest`: conditions on assessment data (field/op/value, OR semantics).
+     When any condition matches the open audit, the measure is surfaced as
+     "Suggested from this assessment" in the Catalog. Admins edit these per
+     measure in the Admin Portal. */
   CATALOG_CATS: ['All Measures', 'Attic & Insulation', 'HVAC Systems', 'Basement & Foundation', 'Windows'],
   CATALOG: [
     { id: 'cellulose', cat: 'Attic & Insulation', name: 'Blown-in Cellulose', icon: 'home',
       impact: 'High Impact', roi: 14, cost: 2200, savings: 310,
+      suggest: [
+        { field: 'zones.attic.fields.depth', op: 'lt', value: '10' },
+        { field: 'zones.attic.fields.insulationType', op: 'eq', value: 'None / Unknown' }
+      ],
       desc: 'Environmentally friendly insulation treated for fire resistance. Ideal for topping up existing attic levels to R-60 standards.',
       science: 'The attic represents the largest surface for *convective heat transfer*. Dense-pack cellulose slows heat migration through the thermal boundary, stabilizing interior temperatures year-round.',
       benefits: ['Reduces HVAC load during peak seasons', 'Prevents ice damming through even roof-deck temperatures'] },
     { id: 'airseal', cat: 'Attic & Insulation', name: 'Air Sealing Package', icon: 'wind',
       impact: 'Critical', roi: 22, cost: 1450, savings: 320,
+      suggest: [{ field: 'tests.blower.cfm50', op: 'gt', value: '2000' }],
       desc: 'Comprehensive sealing of bypasses, top plates, and penetrations using two-component spray foam and fire-rated caulk.',
       science: 'Air leakage accounts for up to 30% of heating losses. Sealing the *pressure boundary* first multiplies the effectiveness of any insulation added afterward.',
       benefits: ['Cuts measurable CFM50 leakage', 'Improves draft comfort immediately'] },
@@ -176,6 +185,10 @@ window.DATA = {
       benefits: ['Eliminates a concentrated bypass', 'Installs in under an hour'] },
     { id: 'ashp', cat: 'HVAC Systems', name: 'ASHP Retrofit', icon: 'air',
       impact: 'Elite', roi: 18, cost: 8400, savings: 1150, rebate: '40% Rebate Eligible',
+      suggest: [
+        { field: 'zones.mechanicals.systems.heating.condition', op: 'eq', value: 'End of Life' },
+        { field: 'intake.heatType', op: 'eq', value: 'Electric Baseboard' }
+      ],
       desc: 'Air Source Heat Pump installation. High-efficiency heating and cooling with cold-climate performance down to -15°F.',
       science: 'Heat pumps move heat instead of generating it, delivering 2.5–3.5 units of heat per unit of electricity — a *coefficient of performance* no combustion appliance can match.',
       benefits: ['Multi-zone high efficiency system', 'Eligible for major utility rebates'] },
@@ -186,11 +199,16 @@ window.DATA = {
       benefits: ['Learns occupancy patterns', 'Remote diagnostics for the homeowner'] },
     { id: 'rimjoist', cat: 'Basement & Foundation', name: 'Rim Joist Sealing', icon: 'layers',
       impact: 'High Impact', roi: 15, cost: 950, savings: 140,
+      suggest: [{ field: 'tests.blower.cfm50', op: 'gt', value: '2500' }],
       desc: 'Rigid foam and spray foam sealing of the foundation-to-frame interface. Stops significant draft entry.',
       science: 'The rim joist is the leakiest framing junction in most homes — sealing it interrupts the *stack effect* at its intake.',
       benefits: ['Warms first-floor perimeter', 'Deters pest entry'] },
     { id: 'vapor', cat: 'Basement & Foundation', name: 'Vapor Barrier', icon: 'droplet',
       impact: 'Health', roi: 5, cost: 1200, savings: 60,
+      suggest: [
+        { field: 'zones.crawlspace.fields.vapor', op: 'eq', value: 'Missing' },
+        { field: 'zones.crawlspace.fields.vapor', op: 'eq', value: 'Damaged / Partial' }
+      ],
       desc: '6-mil polyethylene ground cover for crawlspaces to manage moisture levels and improve indoor air quality.',
       science: 'Ground moisture migrates upward into living space via *vapor drive*; a sealed barrier keeps humidity and soil gases out of the air you breathe.',
       benefits: ['Reduces mold risk', 'Protects framing from rot'] },

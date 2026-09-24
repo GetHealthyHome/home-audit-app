@@ -513,6 +513,9 @@ select.input {
 .tabbar a .tic { font-size: 22px; display: inline-flex; }
 .tabbar a.on { color: var(--green); }
 .tabbar a.fab-slot { flex: 0 0 68px; }
+/* Admin entry renders in the markup for admins but only shows on the
+   desktop rail (mobile keeps the four-tab bar; admins use Settings there). */
+.tabbar a.admin-desktop { display: none; }
 .tabbar .fab {
   width: 54px; height: 54px; border-radius: 999px; background: var(--green); color: #fff;
   border: 4px solid #fff; box-shadow: 0 6px 18px rgba(57,103,0,0.4);
@@ -639,6 +642,7 @@ select.input {
   .tabbar a .tic { font-size: 20px; }
   .tabbar a.on { background: var(--green-soft); }
   .tabbar a.fab-slot { order: 99; margin-top: 14px; flex: 0 0 auto; }
+  .tabbar a.admin-desktop { display: flex; }
   .tabbar .fab {
     width: 100%; height: 48px; border-radius: 12px; margin-top: 0; border: none;
     box-shadow: 0 4px 14px rgba(57,103,0,0.25); gap: 10px; font-size: 18px;
@@ -658,6 +662,15 @@ select.input {
   .pdoc .pd-page { padding: 44px 52px; }
   .tpl-editor { min-height: 520px; font-size: 13px; }
 }
+
+/* ---------- Suggested measures (catalog) ---------- */
+.measure-card.suggested { border: 1.5px solid var(--green); }
+.suggest-reason {
+  background: var(--green-soft); color: var(--green-deep);
+  font: 600 12px var(--font-body); border-radius: 9px; padding: 8px 12px; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 7px;
+}
+.suggest-reason b { color: var(--green-deep); }
 
 /* ---------- Password visibility toggle ---------- */
 .pw-wrap { position: relative; }

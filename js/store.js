@@ -291,6 +291,24 @@
       return (state.admin && state.admin.pricingRules) || [];
     },
 
+    /* Measures whose suggest-conditions match this audit's data, with the
+       matching condition and the measured value (for the "because…" line).
+       Already-selected measures are still returned so the section can show
+       their added state. */
+    suggestedMeasures: function (ev) {
+      var out = [];
+      Store.catalog().forEach(function (m) {
+        var conds = m.suggest || [];
+        for (var i = 0; i < conds.length; i++) {
+          if (Admin.condMatches(conds[i], ev)) {
+            out.push({ measure: m, cond: conds[i], value: Store.get(ev, conds[i].field) });
+            return;
+          }
+        }
+      });
+      return out;
+    },
+
     ashrae: function (ev) {
       var sqft = parseFloat(ev.site.sqft) || 0;
       var beds = parseInt(ev.site.bedrooms, 10);

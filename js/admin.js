@@ -92,6 +92,9 @@
       { path: 'zones.attic.fields.noVent', label: 'Attic: No Ventilation (checked)' },
       { path: 'zones.crawlspace.fields.clearance', label: 'Crawlspace: Clearance (in)', num: true },
       { path: 'zones.crawlspace.fields.sqft', label: 'Crawlspace: Area (sqft)', num: true },
+      { path: 'zones.crawlspace.fields.vapor', label: 'Crawlspace: Vapor Barrier' },
+      { path: 'zones.crawlspace.fields.insulation', label: 'Crawlspace: Insulation Condition' },
+      { path: 'zones.basement.fields.ceiling', label: 'Basement: Ceiling Insulation' },
       { path: 'zones.exterior.fields.sidingType', label: 'Exterior: Siding Type' },
       { path: 'zones.exterior.fields.siding', label: 'Exterior: Siding Condition' },
       { path: 'zones.exterior.fields.walls', label: 'Exterior: Wall Construction' },
@@ -130,17 +133,28 @@
     /* Does this rule's condition hold for the evaluation? */
     ruleMatches: function (rule, ev, measureId) {
       if (rule.measureId !== '*' && rule.measureId !== measureId) return false;
-      if (!rule.field) return false;
-      var v = Store.get(ev, rule.field);
+      return Admin.condMatches(rule, ev);
+    },
+
+    /* A bare condition ({field, op, value}) against the evaluation — shared
+       by pricing rules and per-measure suggestion rules. */
+    condMatches: function (cond, ev) {
+      if (!cond.field) return false;
+      var v = Store.get(ev, cond.field);
       var isSet = v != null && v !== '' && v !== false;
-      switch (rule.op) {
+      switch (cond.op) {
         case 'set': return isSet;
-        case 'eq': return isSet && String(v).trim().toLowerCase() === String(rule.value).trim().toLowerCase();
-        case 'neq': return isSet && String(v).trim().toLowerCase() !== String(rule.value).trim().toLowerCase();
-        case 'lt': return isSet && !isNaN(parseFloat(v)) && parseFloat(v) < parseFloat(rule.value);
-        case 'gt': return isSet && !isNaN(parseFloat(v)) && parseFloat(v) > parseFloat(rule.value);
+        case 'eq': return isSet && String(v).trim().toLowerCase() === String(cond.value).trim().toLowerCase();
+        case 'neq': return isSet && String(v).trim().toLowerCase() !== String(cond.value).trim().toLowerCase();
+        case 'lt': return isSet && !isNaN(parseFloat(v)) && parseFloat(v) < parseFloat(cond.value);
+        case 'gt': return isSet && !isNaN(parseFloat(v)) && parseFloat(v) > parseFloat(cond.value);
         default: return false;
       }
+    },
+
+    condDescribe: function (cond) {
+      return Admin.fieldLabel(cond.field) + ' ' + Admin.opLabel(cond.op) +
+        (cond.op === 'set' ? '' : ' “' + (cond.value || '—') + '”');
     },
 
     /* Dollar amount this rule adds for a measure with the given base cost. */

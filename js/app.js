@@ -116,14 +116,17 @@
   function renderTabbar(parts) {
     var current = parts[0] === 'eval'
       ? (['catalog', 'builder', 'summary', 'proposal-media', 'proposal-doc'].indexOf(parts[2]) >= 0 ? 'proposal' : 'assess')
-      : parts[0];
+      : (parts[0] === 'admin' || parts[0] === 'template' ? 'admin' : parts[0]);
     tabbar.innerHTML = DATA.TABS.map(function (t) {
       if (t.id === 'fab') {
         return '<a href="' + t.route + '" class="fab-slot" aria-label="New evaluation"><span class="fab">' + icon('plus') + '</span></a>';
       }
       return '<a href="' + t.route + '" class="' + (t.id === current ? 'on' : '') + '">' +
         '<span class="tic">' + icon(t.icon) + '</span>' + t.label + '</a>';
-    }).join('');
+    }).join('') +
+    /* Admin entry: desktop rail only (CSS), shown to signed-in admins. */
+    (Auth.isAdmin() ? '<a href="#/admin" class="admin-desktop ' + (current === 'admin' ? 'on' : '') + '">' +
+      '<span class="tic">' + icon('shield') + '</span>Admin</a>' : '');
   }
 
   function startIaqTick(ev) {
@@ -446,6 +449,21 @@
         Store.save();
         UI.toast('Default catalog restored.');
         rerender();
+      },
+      'admin-suggest-add': function () {
+        var cat = Admin.ensureCatalog();
+        var m = cat.filter(function (x) { return x.id === el.getAttribute('data-mid'); })[0];
+        if (!m) return;
+        m.suggest = m.suggest || [];
+        m.suggest.push({ field: 'site.sqft', op: 'gt', value: '' });
+        Store.save(); rerender();
+      },
+      'admin-suggest-remove': function () {
+        var cat = Admin.ensureCatalog();
+        var m = cat.filter(function (x) { return x.id === el.getAttribute('data-mid'); })[0];
+        if (!m || !m.suggest) return;
+        m.suggest.splice(parseInt(el.getAttribute('data-i'), 10), 1);
+        Store.save(); rerender();
       },
       'admin-rule-add': function () {
         var r = Admin.addRule();

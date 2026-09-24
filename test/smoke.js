@@ -182,6 +182,19 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   // --- Select measures ---
   await page.click('text=Improvement Recommendations');
   await page.waitForTimeout(300);
+  assert((await body()).includes('Suggested from this assessment'), 'catalog shows suggestion section');
+  let sugNames = await page.locator('.measure-card.suggested h3').allTextContents();
+  assert(sugNames.includes('Air Sealing Package'), 'CFM50 2340 > 2000 suggests Air Sealing');
+  assert(!sugNames.includes('Rim Joist Sealing'), 'below-threshold rule (2500) does not suggest');
+  assert((await body()).includes('Blower Door: CFM50') && (await body()).includes('2340'), 'suggestion reason cites field and value');
+  await page.evaluate(() => {
+    Store.zone(Store.activeEval(), 'crawlspace').fields.vapor = 'Missing';
+    Store.save(); window.rerender();
+  });
+  await page.waitForTimeout(300);
+  sugNames = await page.locator('.measure-card.suggested h3').allTextContents();
+  assert(sugNames.includes('Vapor Barrier'), 'missing vapor barrier suggests the Vapor Barrier measure');
+  assert((await body()).includes('Crawlspace: Vapor Barrier'), 'vapor suggestion shows its reason');
   await page.click('[data-action="catalog-toggle"][data-mid="cellulose"]');
   await page.waitForTimeout(200);
   await page.click('[data-action="catalog-toggle"][data-mid="airseal"]');
@@ -189,6 +202,9 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   await page.click('[data-action="catalog-toggle"][data-mid="thermostat"]');
   await page.waitForTimeout(200);
   assert((await body()).includes('Review Selections (3)'), '3 measures selected');
+  await page.goto(APP + '#/eval/' + await page.evaluate(() => Store.activeEval().id) + '/hub');
+  await page.waitForTimeout(400);
+  assert((await body()).includes('suggested from assessment data'), 'hub shows suggested-measure count');
 
   // --- Proposal media (pick the two blower photos) ---
   await page.goto(APP + '#/eval/' + await page.evaluate(() => Store.activeEval().id) + '/proposal-media');
@@ -477,6 +493,32 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   assert(roundtrip.cleared, 'clearing config falls back to defaults');
   assert(roundtrip.n === 9 && roundtrip.cost === 2500 && roundtrip.rules === 1, 'export/import round-trips the full config');
 
+  // Suggest-when editor: add a condition to Smart Thermostat via the UI
+  await page.goto(APP + '#/admin/measure/thermostat');
+  await page.waitForTimeout(400);
+  assert((await body()).includes('Suggest When'), 'measure editor has Suggest When section');
+  await page.click('[data-action="admin-suggest-add"][data-mid="thermostat"]');
+  await page.waitForTimeout(400);
+  const tIdx = await page.evaluate(() => Store.state.admin.catalog.findIndex(m => m.id === 'thermostat'));
+  await page.selectOption('select[data-bind="admin.catalog.' + tIdx + '.suggest.0.field"]', 'site.sqft');
+  await page.waitForTimeout(300);
+  await page.selectOption('select[data-bind="admin.catalog.' + tIdx + '.suggest.0.op"]', 'gt');
+  await page.waitForTimeout(300);
+  await page.fill('input[data-bind="admin.catalog.' + tIdx + '.suggest.0.value"]', '2000');
+  await page.waitForTimeout(400);
+  await page.goto(APP + '#/admin/catalog');
+  await page.waitForTimeout(300);
+  assert((await body()).includes('auto-suggest rule'), 'catalog manager shows suggest-rule count');
+  await page.goto(APP + '#/eval/' + evId + '/catalog');
+  await page.waitForTimeout(400);
+  const sugAfter = await page.locator('.measure-card.suggested h3').allTextContents();
+  assert(sugAfter.includes('Smart Thermostat'), 'admin-added condition (sqft > 2000) suggests the measure');
+  const mobAdminHidden = await page.evaluate(() => {
+    const a = document.querySelector('.tabbar a.admin-desktop');
+    return a && getComputedStyle(a).display === 'none';
+  });
+  assert(mobAdminHidden, 'admin rail entry exists but stays hidden on the phone tab bar');
+
   // --- Desktop layout: tab bar becomes a left rail, content widens ---
   const desk = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   await desk.goto(APP);
@@ -492,6 +534,15 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   assert(dm.screenLeft > 232, 'content column sits beside the rail');
   assert(dm.screenW <= 810, 'content column capped for readability (' + dm.screenW + 'px)');
   assert(dm.scrollW <= dm.innerW, 'no horizontal overflow on desktop');
+  assert(await desk.locator('#tabbar a.admin-desktop').count() === 0, 'desktop rail hides Admin when signed out');
+  await desk.evaluate(() => {
+    Store.state.session = { access_token: 'test-token', refresh_token: '', expires_at: Math.floor(Date.now() / 1000) + 86400,
+      user: { id: 'u-test', email: 'crew@test.dev', name: 'Test Crew', role: 'admin' } };
+    Store.save(); window.rerender();
+  });
+  await desk.waitForTimeout(300);
+  const adminLink = desk.locator('#tabbar a.admin-desktop');
+  assert(await adminLink.count() === 1 && await adminLink.isVisible(), 'desktop rail shows Admin entry for admins');
   const fabLabel = await desk.evaluate(() =>
     getComputedStyle(document.querySelector('.tabbar .fab'), '::after').content);
   assert(fabLabel.includes('New Evaluation'), 'desktop rail labels the new-evaluation action');
