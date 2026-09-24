@@ -49,6 +49,32 @@
     });
   }
 
+  function uuid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  /* Customer-facing financial snapshot embedded in the synced payload so the
+     shared proposal deck renders without the device-local admin config. */
+  function deckFinancials(ev) {
+    var fin = Store.financials(ev, Proposal.includedIds(ev));
+    return {
+      items: fin.items.map(function (i) {
+        return {
+          name: i.measure.name, desc: i.measure.desc, science: i.measure.science || '',
+          benefits: Store.measureBenefits(i.measure), rebate: i.measure.rebate || '',
+          cost: i.cost, savings: i.savings, base: i.base,
+          adjustments: i.adjustments, notes: i.notes
+        };
+      }),
+      cost: fin.cost, savings: fin.savings, payback: fin.payback,
+      upcharge: fin.upcharge, marketPayback: DATA.MARKET_AVG_PAYBACK_YEARS
+    };
+  }
+
   function dataUrlToBlob(dataUrl) {
     var parts = dataUrl.split(',');
     var mime = (parts[0].match(/data:([^;]+)/) || [null, 'image/jpeg'])[1];
@@ -95,8 +121,10 @@
     syncAudit: function (ev) {
       if (!ready()) return Promise.reject(new Error('Backend not configured'));
       ev.syncState = ev.syncState || { photos: {} };
+      if (!ev.shareToken) { ev.shareToken = uuid(); Store.save(); }
       var payload = JSON.parse(JSON.stringify(ev));
       delete payload.syncState;
+      payload.proposalComputed = deckFinancials(ev);
 
       return requireAuth().then(function () {
         return Backend._syncAuthed(ev, payload);
@@ -115,6 +143,7 @@
           appointment_date: ev.appointment.date || null,
           photo_count: ev.photos.length,
           payload: payload,
+          share_token: ev.shareToken,
           updated_at: new Date().toISOString()
         }]
       }).then(function () {
@@ -143,6 +172,18 @@
         ev.syncState.error = e.message;
         Store.save();
         throw e;
+      });
+    },
+
+    /* Fetch the share token for an audit synced before deck links existed. */
+    fetchShareToken: function (ev) {
+      if (ev.shareToken) return Promise.resolve(ev.shareToken);
+      return requireAuth().then(function () {
+        return rest('audits?id=eq.' + encodeURIComponent(ev.id) + '&select=share_token');
+      }).then(function (rows) {
+        var t = rows && rows[0] && rows[0].share_token;
+        if (t) { ev.shareToken = t; Store.save(); }
+        return t || null;
       });
     },
 

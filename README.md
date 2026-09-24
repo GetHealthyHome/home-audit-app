@@ -36,6 +36,19 @@ in the field.
   On the proposal screen the assessor **checks/unchecks which recommended
   improvements** appear in the document without touching the working plan.
   Custom templates persist locally; one tap restores the default design.
+- **Shareable proposal deck** (`deck.html?t=<share-token>`) — a customer-facing,
+  full-screen slide presentation (keyboard/swipe/dot navigation, Export PDF
+  with one landscape page per slide) auto-populated from the synced audit:
+  cover with totals, one slide per selected site photo, one per recommended
+  improvement (base cost + pricing-rule adjustments itemized), investment
+  summary, next steps. Served by the public `proposal-deck` edge function via
+  an unguessable per-audit `share_token` (capability URL — no customer login);
+  only a whitelisted, customer-facing subset of the payload leaves the server.
+  Sync embeds a `proposalComputed` snapshot so the deck prices correctly
+  without the device-local admin config. Auditors tap **Share Online Deck**
+  on the proposal screen to copy the link. The slide layouts are plain
+  template functions in `js/deck.js` (+ `css/deck.css`) — edit them in the
+  GitHub web editor and Vercel redeploys the live deck on commit.
 - **Admin Portal** (`#/admin`, from Settings) — company configuration that
   overlays the shipped defaults: manage the **improvement catalog** (add /
   edit / delete measures: costs, savings, ROI, rebates, science copy,
