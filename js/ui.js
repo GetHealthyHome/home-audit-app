@@ -123,6 +123,13 @@
       return '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     },
 
+    /* Unit prices keep their cents ($1.50/sqft, $0.45/sqft). */
+    money2: function (n) {
+      n = parseFloat(n) || 0;
+      var parts = n.toFixed(2).split('.');
+      return '$' + parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (parts[1] === '00' ? '' : '.' + parts[1]);
+    },
+
     /* Grab the auditor's attention (IAQ timer done, etc.): audible chirp +
        vibration + toast. Audio can be blocked until a user gesture — every
        path that starts a timer is a tap, so the context is usually unlocked. */

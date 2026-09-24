@@ -33,6 +33,9 @@
       navCard('#/admin/catalog', 'layers', 'Improvement Catalog',
         catalogN + ' measures — names, costs, savings, science copy',
         UI.pill(customCatalog ? 'progress' : 'complete', customCatalog ? 'Customized' : 'Default')) +
+      navCard('#/admin/materials', 'box', 'Materials Catalog',
+        'Unit costs (per sqft / per piece / flat) that build measure prices from assessment quantities',
+        UI.pill(a.materials ? 'progress' : 'complete', a.materials ? 'Customized' : 'Default')) +
       navCard('#/admin/pricing', 'calc', 'Pricing Rules',
         'Adjust measure costs from audit answers (sqft, selects, tests)',
         UI.pill(rulesN ? 'progress' : 'pending', rulesN ? rulesN + ' active' : 'None yet')) +
@@ -125,6 +128,80 @@
   };
   window.CrewDraft = {};
 
+  /* ---------------- Materials catalog ---------------- */
+  window.ScreenAdminMaterials = function () {
+    var mats = Admin.ensureMaterials();
+    var rows = mats.map(function (mat) {
+      var sub = mat.unit === 'flat'
+        ? 'flat ' + UI.money2(mat.cost)
+        : UI.money2(mat.cost) + ' / ' + (mat.unit === 'each' ? 'piece' : 'sqft') + ' × ' + esc(Admin.qtyLabel(mat.qty));
+      var usedBy = Store.catalog().filter(function (c) { return (c.materials || []).indexOf(mat.id) >= 0; }).length;
+      return '<button class="module-row" data-action="nav" data-route="#/admin/material/' + esc(mat.id) + '">' +
+        '<span class="mic">' + icon('box') + '</span>' +
+        '<span class="mbody"><b>' + esc(mat.name || 'Unnamed material') + '</b>' +
+        '<span style="display:block;font:600 11px var(--font-body);color:var(--faint);margin-top:4px">' + sub +
+        (usedBy ? ' · used by ' + usedBy + ' measure' + (usedBy > 1 ? 's' : '') : '') + '</span></span>' +
+        '<span class="chev">' + icon('chevR') + '</span></button>';
+    }).join('');
+
+    return UI.subbar('Materials', '#/admin') +
+      '<div class="screen">' +
+      '<h1 class="screen-title">Materials Catalog</h1>' +
+      '<p class="screen-sub">Unit costs that build improvement prices. Attach materials to a measure in its editor — its base cost is then computed per audit from the assessment quantity each material reads (attic square footage, home square footage, piece counts).</p>' +
+      '<button class="btn primary" data-action="admin-material-add">' + icon('plus') + ' Add Material</button>' +
+      rows +
+      '<div style="height:16px"></div>' +
+      '<button class="btn danger-ghost" data-action="admin-materials-reset">Reset materials to defaults</button>' +
+      '</div>';
+  };
+
+  /* ---------------- Material editor ---------------- */
+  window.ScreenAdminMaterial = function (id) {
+    var mats = Admin.ensureMaterials();
+    var i = -1;
+    mats.forEach(function (mat, idx) { if (mat.id === id) i = idx; });
+    if (i < 0) {
+      return UI.subbar('Material', '#/admin/materials') +
+        '<div class="screen"><div class="empty">' + icon('box') + '<b>Material not found</b></div></div>';
+    }
+    var mat = mats[i];
+    var b = 'admin.materials.' + i;
+    var unitOpts = Admin.MATERIAL_UNITS.map(function (u) {
+      return '<option value="' + u.id + '"' + (mat.unit === u.id ? ' selected' : '') + '>' + esc(u.label) + '</option>';
+    }).join('');
+    var qtyOpts = Admin.QTY_FIELDS.map(function (q) {
+      return '<option value="' + esc(q.id) + '"' + (mat.qty === q.id ? ' selected' : '') + '>' + esc(q.label) + '</option>';
+    }).join('') + (Admin.QTY_FIELDS.some(function (q) { return q.id === mat.qty; }) ? '' :
+      '<option value="' + esc(mat.qty || '') + '" selected>Custom: ' + esc(mat.qty || '—') + '</option>');
+
+    var active = Store.activeEval();
+    var preview = '';
+    if (active && mat.unit !== 'flat') {
+      var q = Store.quantity(active, mat.qty);
+      var line = q ? q + ' × ' + UI.money2(mat.cost) + ' = <b>' + UI.money(Math.round(q * (parseFloat(mat.cost) || 0))) + '</b>'
+        : '<span style="color:var(--red)">no ' + esc(Admin.qtyLabel(mat.qty)) + ' recorded yet</span>';
+      preview = '<div class="insight"><b>' + icon('info') + ' Against ' + esc(active.customer.name || 'the open audit') + ':</b> ' + line + '</div>';
+    }
+
+    return UI.subbar('Edit Material', '#/admin/materials') +
+      '<div class="screen">' +
+      '<h1 class="screen-title">' + esc(mat.name || 'New Material') + '</h1>' +
+      '<p class="screen-sub">Changes save automatically and apply to every measure using this material.</p>' +
+      '<div class="card">' +
+      UI.field({ label: 'Name', bind: b + '.name', value: mat.name, placeholder: 'e.g. Old Insulation Removal' }) +
+      '<div class="field"><label>Priced</label><select class="input" data-bind="' + b + '.unit">' + unitOpts + '</select></div>' +
+      UI.field({ label: mat.unit === 'flat' ? 'Amount ($)' : 'Cost per ' + (mat.unit === 'each' ? 'piece' : 'sq. ft.') + ' ($)', bind: b + '.cost', type: 'number', inputmode: 'decimal', value: mat.cost, placeholder: mat.unit === 'each' ? '850' : '1.50' }) +
+      (mat.unit === 'flat' ? '' :
+        '<div class="field"><label>Quantity comes from</label><select class="input" data-bind="' + b + '.qty">' + qtyOpts + '</select></div>') +
+      '</div>' +
+      preview +
+      '<div class="cta-dock">' +
+      '<button class="btn primary" data-action="nav" data-route="#/admin/materials">Done</button>' +
+      '<div style="height:8px"></div>' +
+      '<button class="btn danger-ghost" data-action="admin-material-delete" data-matid="' + esc(mat.id) + '">Delete this material</button>' +
+      '</div></div>';
+  };
+
   /* ---------------- Catalog manager ---------------- */
   window.ScreenAdminCatalog = function () {
     var cat = Admin.ensureCatalog();
@@ -180,12 +257,35 @@
       UI.field({ label: 'Icon', bind: b + '.icon', options: Admin.ICONS, value: m.icon }) +
       '</div>' +
 
-      '<div class="card">' + UI.sectionHeading('Financials', 'calc') +
-      UI.field({ label: 'Base Cost ($)', bind: b + '.cost', type: 'number', inputmode: 'decimal', value: m.cost, placeholder: '2200' }) +
-      UI.field({ label: 'Annual Savings ($)', bind: b + '.savings', type: 'number', inputmode: 'decimal', value: m.savings, placeholder: '310' }) +
-      UI.field({ label: 'Est. ROI (%)', bind: b + '.roi', type: 'number', inputmode: 'decimal', value: m.roi, placeholder: '14' }) +
-      UI.field({ label: 'Rebate Note', bind: b + '.rebate', value: m.rebate, placeholder: 'e.g. 40% Rebate Eligible (blank = none)' }) +
-      '<p class="hint">Base cost feeds the Builder and proposals; Pricing Rules can adjust it per audit.</p>' +
+      '<div class="card">' + UI.sectionHeading('Cost Build-Up', 'calc') +
+      '<p class="hint">Attach materials from the Materials Catalog — the measure’s base cost is computed per audit from assessment quantities (area square footage, piece counts). With no materials attached, the flat cost below is used.</p>' +
+      Admin.ensureMaterials().map(function (mat) {
+        var on = (m.materials || []).indexOf(mat.id) >= 0;
+        var sub = mat.unit === 'flat'
+          ? 'flat ' + UI.money2(mat.cost)
+          : UI.money2(mat.cost) + ' / ' + (mat.unit === 'each' ? 'piece' : 'sqft') + ' × ' + esc(Admin.qtyLabel(mat.qty));
+        return '<button class="check-row" data-action="admin-mat-toggle" data-mid="' + esc(m.id) + '" data-matid="' + esc(mat.id) + '">' +
+          '<span class="cbox ' + (on ? 'on' : '') + '">' + (on ? icon('check') : '') + '</span>' +
+          '<span class="cbody"><b>' + esc(mat.name) + '</b><span>' + sub + '</span></span>' +
+          '</button>';
+      }).join('') +
+      (function () {
+        var active = Store.activeEval();
+        if (!active || !(m.materials || []).length) return '';
+        var lines = Store.materialLines(active, m);
+        var total = lines.reduce(function (s, l) { return s + l.cost; }, 0);
+        return '<div class="insight" style="margin-top:12px"><b>' + icon('calc') + ' Priced against ' + esc(active.customer.name || 'the open audit') + ':</b><br>' +
+          lines.map(function (l) {
+            if (l.unit === 'flat') return esc(l.name) + ': ' + UI.money(l.cost);
+            return esc(l.name) + ': ' + (l.missing
+              ? '<span style="color:var(--red)">enter ' + esc(l.qtyLabel) + ' in the assessment</span>'
+              : l.qty + ' × ' + UI.money2(l.unitCost) + ' = ' + UI.money(l.cost));
+          }).join('<br>') +
+          '<br><b>Base cost: ' + UI.money(total) + '</b></div>';
+      })() +
+      '<div style="height:10px"></div>' +
+      UI.field({ label: 'Flat Base Cost ($) — used only when no materials are attached', bind: b + '.cost', type: 'number', inputmode: 'decimal', value: m.cost, placeholder: '2200' }) +
+      '<button class="btn small secondary" data-action="nav" data-route="#/admin/materials">' + icon('layers') + ' Manage Materials Catalog</button>' +
       '</div>' +
 
       '<div class="card">' + UI.sectionHeading('Customer Copy', 'doc') +

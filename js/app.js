@@ -63,6 +63,8 @@
           switch (parts[1]) {
             case 'crew': html = ScreenAdminCrew(); break;
             case 'catalog': html = ScreenAdminCatalog(); break;
+            case 'materials': html = ScreenAdminMaterials(); break;
+            case 'material': html = ScreenAdminMaterial(parts[2]); break;
             case 'measure': html = ScreenAdminMeasure(parts[2]); break;
             case 'pricing': html = ScreenAdminPricing(); break;
             case 'rule': html = ScreenAdminRule(parts[2]); break;
@@ -463,6 +465,40 @@
         var m = cat.filter(function (x) { return x.id === el.getAttribute('data-mid'); })[0];
         if (!m || !m.suggest) return;
         m.suggest.splice(parseInt(el.getAttribute('data-i'), 10), 1);
+        Store.save(); rerender();
+      },
+      /* ---- Materials catalog ---- */
+      'admin-material-add': function () {
+        var mat = Admin.addMaterial();
+        location.hash = '#/admin/material/' + mat.id;
+      },
+      'admin-material-delete': function () {
+        var matId = el.getAttribute('data-matid');
+        var usedBy = Store.catalog().filter(function (c) { return (c.materials || []).indexOf(matId) >= 0; });
+        if (!confirm('Delete this material?' + (usedBy.length ? ' It is attached to ' + usedBy.length + ' measure(s) — their cost build-ups will drop it.' : ''))) return;
+        Store.state.admin.materials = Admin.ensureMaterials().filter(function (mat) { return mat.id !== matId; });
+        Admin.ensureCatalog().forEach(function (c) {
+          if (c.materials) c.materials = c.materials.filter(function (x) { return x !== matId; });
+        });
+        Store.save();
+        UI.toast('Material deleted.');
+        location.hash = '#/admin/materials';
+      },
+      'admin-materials-reset': function () {
+        if (!confirm('Discard materials customizations and restore the defaults?')) return;
+        Store.state.admin.materials = null;
+        Store.save();
+        UI.toast('Default materials restored.');
+        rerender();
+      },
+      'admin-mat-toggle': function () {
+        var cat = Admin.ensureCatalog();
+        var m = cat.filter(function (x) { return x.id === el.getAttribute('data-mid'); })[0];
+        if (!m) return;
+        var matId = el.getAttribute('data-matid');
+        m.materials = m.materials || [];
+        var i = m.materials.indexOf(matId);
+        if (i >= 0) m.materials.splice(i, 1); else m.materials.push(matId);
         Store.save(); rerender();
       },
       'admin-rule-add': function () {

@@ -22,6 +22,11 @@
   function money(n) {
     return '$' + Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
+  function money2(n) {
+    n = parseFloat(n) || 0;
+    var parts = n.toFixed(2).split('.');
+    return '$' + parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (parts[1] === '00' ? '' : '.' + parts[1]);
+  }
   function fmtDate(iso) {
     var d = new Date((iso || '') + 'T12:00:00');
     return isNaN(d) ? '' : d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
@@ -80,7 +85,12 @@
         '<ul class="benefits">' + m.benefits.map(function (b) { return '<li>' + esc(b) + '</li>'; }).join('') + '</ul>' : '') +
       '<div class="numbers">' +
       '<div><b>' + money(m.savings) + '/yr</b><span>Estimated savings</span></div>' +
-      (m.adjustments && m.adjustments.length ?
+      (m.materials && m.materials.length ?
+        '<div><b>' + money(m.base) + '</b><span>' +
+        m.materials.map(function (l) {
+          return esc(l.name) + (l.unit === 'flat' ? '' : ' (' + l.qty + ' × ' + money2(l.unitCost) + ')');
+        }).join(' · ') + '</span></div>' :
+      m.adjustments && m.adjustments.length ?
         '<div><b>' + money(m.base) + ' base</b><span>' +
         m.adjustments.map(function (a) {
           return (a.amount < 0 ? '− ' + money(-a.amount) : '+ ' + money(a.amount)) + ' ' + esc(a.label);

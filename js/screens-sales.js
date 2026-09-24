@@ -127,7 +127,23 @@
       picker +
 
       '<div class="card">' + UI.sectionHeading('Financial Estimates', 'calc') +
-      (fi.adjustments.length ?
+      (fi.materialLines.length ?
+        '<div class="insight" style="margin-top:0"><b>' + icon('calc') + ' Cost build-up from assessment quantities</b><br>' +
+        fi.materialLines.map(function (l) {
+          if (l.unit === 'flat') return esc(l.name) + ': ' + UI.money(l.cost);
+          return esc(l.name) + ': ' + (l.missing
+            ? '<span style="color:var(--red)">enter ' + esc(l.qtyLabel) + ' in the assessment</span>'
+            : l.qty + ' × ' + UI.money2(l.unitCost) + ' = ' + UI.money(l.cost));
+        }).join('<br>') +
+        '<br>Base <b>' + UI.money(fi.base) + '</b>' +
+        fi.adjustments.map(function (a) {
+          return ' &nbsp;' + (a.amount < 0 ? '− ' + UI.money(-a.amount) : '+ ' + UI.money(a.amount)) +
+            ' <span style="color:var(--muted)">(' + esc(a.label) + ')</span>';
+        }).join('') +
+        (fi.adjustments.length ? ' &nbsp;→ <b>' + UI.money(fi.autoCost) + '</b>' : '') +
+        (rec.cost != null && rec.cost !== '' ? '<br><span style="color:var(--muted)">Overridden by the manual cost below.</span>' : '') +
+        '</div>' :
+      fi.adjustments.length ?
         '<div class="insight" style="margin-top:0"><b>' + icon('calc') + ' Auto-pricing from audit data</b><br>' +
         'Base ' + UI.money(fi.base) +
         fi.adjustments.map(function (a) {

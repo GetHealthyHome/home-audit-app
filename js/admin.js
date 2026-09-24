@@ -26,6 +26,45 @@
       return a.catalog;
     },
 
+    /* Seed the editable materials catalog from defaults on first entry. */
+    ensureMaterials: function () {
+      var a = ensureAdmin();
+      if (!a.materials) {
+        a.materials = JSON.parse(JSON.stringify(DATA.MATERIALS));
+        Store.save();
+      }
+      return a.materials;
+    },
+
+    addMaterial: function () {
+      var mats = Admin.ensureMaterials();
+      var m = { id: Store.uid('mat'), name: 'New Material', unit: 'sqft', cost: '', qty: 'site.sqft' };
+      mats.push(m);
+      Store.save();
+      return m;
+    },
+
+    /* Assessment quantities a material can price against: numeric audit
+       fields plus computed counts (calc:*). */
+    QTY_FIELDS: [
+      { id: 'site.sqft', label: 'Home: Conditioned SqFt' },
+      { id: 'zones.attic.fields.sqft', label: 'Attic: Area (sqft)' },
+      { id: 'zones.crawlspace.fields.sqft', label: 'Crawlspace: Area (sqft)' },
+      { id: 'zones.crawlspace.fields.ventQty', label: 'Crawlspace: Vent Count' },
+      { id: 'site.bedrooms', label: 'Bedroom Count' },
+      { id: 'calc:windows', label: 'Window Count (all floors)' },
+      { id: 'calc:mechanicals', label: 'Mechanical Systems Count' }
+    ],
+    MATERIAL_UNITS: [
+      { id: 'sqft', label: 'Per square foot' },
+      { id: 'each', label: 'Per piece / each' },
+      { id: 'flat', label: 'Flat amount' }
+    ],
+    qtyLabel: function (ref) {
+      var q = Admin.QTY_FIELDS.filter(function (x) { return x.id === ref; })[0];
+      return q ? q.label : ref;
+    },
+
     ensurePrompts: function () {
       var a = ensureAdmin();
       if (!a.prompts) {
