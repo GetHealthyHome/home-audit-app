@@ -570,6 +570,44 @@
         });
       },
       'print-doc': function () { window.print(); },
+      /* Share the customer-facing deck link. The audit must be in the cloud
+         (that's what the deck serves), so sync first when needed. */
+      'share-deck': function () {
+        if (!Backend.ready()) { UI.toast('No backend configured.'); return; }
+        var cfg = window.BACKEND_CONFIG;
+        var base = cfg.appUrl || (location.origin.indexOf('http') === 0 ? location.origin : '');
+        function finish(tok) {
+          var url = base + '/deck.html?t=' + tok;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(
+              function () { UI.toast('Deck link copied — text or email it to the customer.'); },
+              function () { prompt('Copy this proposal link:', url); });
+          } else {
+            prompt('Copy this proposal link:', url);
+          }
+        }
+        if (ev.shareToken && ev.synced) { finish(ev.shareToken); return; }
+        UI.toast('Syncing this audit to create the share link…');
+        Store.sync(ev).then(function () {
+          rerender();
+          finish(ev.shareToken);
+        }).catch(function (e) {
+          if (e.message === 'SIGN_IN_REQUIRED') {
+            UI.toast('Sign in first — sharing needs cloud sync.');
+            location.hash = '#/login';
+          } else if (ev.synced) {
+            // Synced earlier (possibly by an older app version) — the
+            // server's token is authoritative, not the one this failed
+            // sync attempt minted locally.
+            ev.shareToken = null;
+            Backend.fetchShareToken(ev).then(function (tok) {
+              if (tok) finish(tok); else UI.toast('Could not get a share link — check your connection.');
+            }).catch(function () { UI.toast('Could not get a share link — check your connection.'); });
+          } else {
+            UI.toast('Offline — the deck link needs the audit synced to the cloud.');
+          }
+        });
+      },
       'dash-view': function () {
         uiState.dashView = el.getAttribute('data-view');
         if (uiState.dashView === 'cal' && !uiState.calSelected) {

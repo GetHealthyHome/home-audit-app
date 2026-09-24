@@ -8,3 +8,7 @@ verify_jwt = true
 [functions.crew-admin]
 # Admin-only crew account management; verifies the caller's admin role.
 verify_jwt = true
+
+[functions.proposal-deck]
+# Customer-facing proposal deck; access is by unguessable share token.
+verify_jwt = false

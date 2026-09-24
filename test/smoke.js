@@ -534,6 +534,78 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   await page.waitForTimeout(600);
   assert(await page.locator('.pw-wrap:has(input[data-bind="crew.password"]) .pw-eye').count() === 1, 'crew temp-password field has the eye toggle');
 
+  // --- Customer proposal deck (deck.html, mocked edge function) ---
+  const deckData = {
+    customer: { name: 'Dr. Julian Voss', address: '124 Organic Lane, Portland, OR' },
+    date: '2026-09-23', auditor: 'Test Crew',
+    site: { sqft: '2450', yearBuilt: '1992', bedrooms: '4' },
+    tests: { cfm50: '2340', co2: '412', voc: '0.2', rh: '45', pm: '8' },
+    energy: { location: 'Portland, Oregon', hdd: 4400 },
+    proposal: {
+      items: [
+        { name: 'Blown-in Cellulose', desc: 'Attic top-up to R-60.', science: 'Slows *convective heat transfer*.',
+          benefits: ['Lower bills', 'No ice dams'], rebate: '', cost: 3000, savings: 310, base: 2500,
+          adjustments: [{ label: 'Large home surcharge', amount: 500 }], notes: '' },
+        { name: 'Air Sealing Package', desc: 'Seal bypasses and penetrations.', science: '',
+          benefits: [], rebate: '40% Rebate Eligible', cost: 1450, savings: 320, base: 1450, adjustments: [], notes: 'Top plates first' }
+      ],
+      cost: 4450, savings: 630, payback: 7.1, upcharge: 0, marketPayback: 9
+    },
+    photos: [
+      { label: 'Attic Overview', zone: 'attic', url: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' },
+      { label: 'Manometer Reading', zone: 'blower', url: '' }
+    ],
+    updatedAt: '2026-09-24T00:00:00Z'
+  };
+  const deckPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  await deckPage.route('**/functions/v1/proposal-deck*', route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(deckData) }));
+  await deckPage.goto('file://' + path.resolve(__dirname, '..', 'deck.html') + '?t=00000000-0000-4000-8000-000000000000');
+  await deckPage.waitForTimeout(700);
+  const dtxt = await deckPage.textContent('body');
+  assert(dtxt.includes('Dr. Julian Voss'), 'deck cover populates customer name');
+  assert(dtxt.includes('$4,450'), 'deck cover shows total investment');
+  assert(dtxt.includes('2340'), 'deck cites blower-door CFM50');
+  const slideCount = await deckPage.locator('.stage .slide').count();
+  assert(slideCount === 7, 'deck builds 7 slides (cover + 2 photos + 2 measures + pricing + closing) — got ' + slideCount);
+  assert(await deckPage.locator('.dots button').count() === 7, 'dot per slide');
+  assert(await deckPage.locator('.slide[data-idx="0"].on').count() === 1, 'cover active first');
+  await deckPage.keyboard.press('ArrowRight');
+  await deckPage.waitForTimeout(350);
+  assert(await deckPage.locator('.slide[data-idx="1"].on').count() === 1, 'arrow key advances slides');
+  assert((await deckPage.textContent('.slide[data-idx="1"]')).includes('Attic Overview'), 'photo slide shows finding label');
+  await deckPage.keyboard.press('ArrowRight');
+  await deckPage.waitForTimeout(350);
+  assert((await deckPage.textContent('.slide[data-idx="2"]')).includes('Photo pending'), 'missing photo renders a placeholder');
+  await deckPage.click('.dots button[data-goto="3"]');
+  await deckPage.waitForTimeout(350);
+  const mtxt = await deckPage.textContent('.slide[data-idx="3"]');
+  assert(mtxt.includes('Blown-in Cellulose') && mtxt.includes('$3,000'), 'measure slide shows rule-adjusted cost');
+  assert(mtxt.includes('Large home surcharge'), 'measure slide itemizes the pricing adjustment');
+  await deckPage.click('.dots button[data-goto="5"]');
+  await deckPage.waitForTimeout(350);
+  const ptxt = await deckPage.textContent('.slide[data-idx="5"]');
+  assert(ptxt.includes('$4,450') && ptxt.includes('Year 8'), 'pricing slide totals and breakeven year');
+  assert(await deckPage.locator('.print-only .print-slide').count() === 7, 'print layout has one page per slide');
+  assert(dtxt.includes('Export PDF'), 'deck offers PDF export');
+  await deckPage.screenshot({ path: SHOT_DIR + '/12-deck-cover.png' });
+  await deckPage.click('.dots button[data-goto="0"]');
+
+  // Bad token path
+  const deckErr = await browser.newPage({ viewport: { width: 800, height: 600 } });
+  await deckErr.route('**/functions/v1/proposal-deck*', route =>
+    route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'Proposal not found' }) }));
+  await deckErr.goto('file://' + path.resolve(__dirname, '..', 'deck.html') + '?t=00000000-0000-4000-8000-00000000dead');
+  await deckErr.waitForTimeout(500);
+  assert((await deckErr.textContent('body')).includes('Proposal not found'), 'deck surfaces not-found errors');
+  await deckErr.close();
+  await deckPage.close();
+
+  // Share button present on proposal doc (backend configured)
+  await page.goto(APP + '#/eval/' + evId + '/proposal-doc');
+  await page.waitForTimeout(500);
+  assert((await body()).includes('Share Online Deck'), 'proposal screen offers the share-deck button');
+
   if (errors.length) throw new Error('Console/page errors:\n' + errors.join('\n'));
   console.log('\nALL SMOKE TESTS PASSED');
   await browser.close();

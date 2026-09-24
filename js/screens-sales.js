@@ -333,7 +333,12 @@
       '<div class="btn-row" style="margin-top:10px">' +
       '<button class="btn small secondary" data-action="nav" data-route="#/eval/' + ev.id + '/proposal-media">Choose Photos</button>' +
       '<button class="btn small secondary" data-action="nav" data-route="#/template">' + icon('edit') + ' Edit Template</button>' +
-      '</div></div>';
+      '</div>' +
+      (Backend.ready() ?
+        '<div style="height:8px"></div>' +
+        '<button class="btn small primary" data-action="share-deck">' + icon('export') + ' Share Online Deck with Customer</button>' +
+        '<p class="hint" style="margin:8px 0 0">Creates a private link the customer can open in any browser — a full-screen slide deck of this proposal with photos, live from the cloud copy.</p>' : '') +
+      '</div>';
 
     var doc;
     try {
