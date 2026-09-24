@@ -196,6 +196,15 @@
       '<p class="hint" style="margin:6px 0 0">Customer: ' + esc(ev.customer.name || '—') + '</p></div>' +
       UI.pill(ev.status === 'complete' ? 'complete' : 'progress') + '</div></div>' +
 
+      '<div class="card">' + UI.sectionHeading('Visit Notes', 'clipboard') +
+      UI.field({ label: 'Team notes about this customer (internal)', bind: 'notes.team', textarea: true,
+        placeholder: 'Access details, pets, schedule constraints, sensitivities…',
+        value: (ev.notes && ev.notes.team) || '' }) +
+      UI.field({ label: 'Customer prep for the work (shared in the proposal)', bind: 'notes.customerPrep', textarea: true,
+        placeholder: 'Clear the attic hatch area, secure pets during the blower test, move storage off the crawlspace access…',
+        value: (ev.notes && ev.notes.customerPrep) || '' }) +
+      '</div>' +
+
       UI.sectionHeading('Diagnostics', 'shield') +
       moduleRow('#/eval/' + ev.id + '/blower', 'wind', 'Blower Door Test', ms.blower, '', 'blower') +
       moduleRow('#/eval/' + ev.id + '/iaq', 'air', 'IAQ Test', ms.iaq, '', 'iaq') +

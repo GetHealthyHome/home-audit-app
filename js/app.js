@@ -10,6 +10,41 @@
   };
   var iaqTimer = null;
   var guideUploadPending = null;
+  var csvUploadSection = null;
+
+  var CSV_LABELS = {
+    crew: 'Crew Accounts', catalog: 'Improvement Catalog', materials: 'Materials Catalog',
+    prompts: 'Audit Prompts', pricing: 'Pricing Rules', guides: 'Diagnostics Guides'
+  };
+
+  /* Crew CSV rows become sequential account-service calls; every other
+     section applies locally in one shot. */
+  function importCrewCsv(rows) {
+    if (!Backend.ready()) { UI.toast('No backend configured — crew accounts need the cloud.'); return; }
+    if (!Auth.signedIn()) { UI.toast('Sign in as an admin first.'); return; }
+    var todo = rows.filter(function (r) { return r.password; });
+    var skipped = rows.length - todo.length;
+    if (!todo.length) { UI.toast('No rows to create — add a temp_password to each new account row.'); return; }
+    if (!confirm('Create ' + todo.length + ' crew account' + (todo.length > 1 ? 's' : '') +
+      (skipped ? ' (' + skipped + ' row' + (skipped > 1 ? 's' : '') + ' without a temp_password skipped)' : '') + '?')) return;
+    UI.toast('Creating accounts…');
+    var ok = 0;
+    var failed = [];
+    var chain = Promise.resolve();
+    todo.forEach(function (r) {
+      chain = chain.then(function () {
+        return Auth.crewAdmin({ action: 'create', email: r.email, password: r.password, name: r.name, role: r.role })
+          .then(function () { ok++; })
+          .catch(function (e) { failed.push(r.email + ' (' + e.message + ')'); });
+      });
+    });
+    chain.then(function () {
+      CrewCache.list = null; CrewCache.error = null;
+      rerender();
+      UI.toast(ok + ' account' + (ok !== 1 ? 's' : '') + ' created' + (failed.length ? ' — ' + failed.length + ' failed' : '') + '.');
+      if (failed.length) alert('These rows failed:\n\n' + failed.join('\n'));
+    });
+  }
 
   function route() {
     var h = location.hash || '#/dashboard';
@@ -209,6 +244,30 @@
       };
       reader.readAsText(file);
       e.target.value = '';
+      return;
+    }
+    if (e.target.id === 'csv-upload-file') {
+      var csvFile = e.target.files[0];
+      var section = csvUploadSection;
+      e.target.value = '';
+      csvUploadSection = null;
+      if (!csvFile || !section) return;
+      var csvReader = new FileReader();
+      csvReader.onload = function () {
+        try {
+          if (section === 'crew') {
+            importCrewCsv(Admin.csvImport('crew', csvReader.result));
+            return;
+          }
+          if (!confirm('Replace the entire ' + CSV_LABELS[section] + ' with this file’s contents?')) return;
+          var res = Admin.csvImport(section, csvReader.result);
+          UI.toast(CSV_LABELS[section] + ' updated from the template (' + res.count + ' rows).');
+          rerender();
+        } catch (err) {
+          alert('Import failed — nothing was changed.\n\n' + err.message);
+        }
+      };
+      csvReader.readAsText(csvFile);
       return;
     }
     if (e.target.id === 'guide-upload-file') {
@@ -459,6 +518,22 @@
         Store.save(); rerender();
       },
       'tpl-view': function () { uiState.tplView = el.getAttribute('data-view'); rerender(); },
+      /* ---- Bulk CSV templates (admin) ---- */
+      'csv-download': function () {
+        var section = el.getAttribute('data-section');
+        var blob = new Blob([Admin.csvTemplate(section)], { type: 'text/csv' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'homsci-' + section + '-template.csv';
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+        UI.toast('Template downloaded — edit it in Excel or Google Sheets, then upload it back.');
+      },
+      'csv-upload': function () {
+        csvUploadSection = el.getAttribute('data-section');
+        var inp = document.getElementById('csv-upload-file');
+        if (inp) inp.click();
+      },
       /* ---- Media settings (admin) ---- */
       'admin-stamp-toggle': function () {
         var m = Admin.ensureMedia();

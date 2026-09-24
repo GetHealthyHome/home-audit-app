@@ -182,6 +182,7 @@
         customer: ev.customer,
         site: ev.site,
         ashrae: Store.ashrae(ev),
+        prepNotes: (ev.notes && ev.notes.customerPrep) || '',
         tests: {
           cfm50: ev.tests.blower.cfm50,
           co2: ev.tests.iaq.co2,
@@ -225,6 +226,7 @@
         customer: { name: 'Sample Customer', address: '123 Maple Street, Springfield', phone: '(555) 010-0199', email: 'sample@example.com' },
         site: { sqft: 2450, yearBuilt: 1962, stories: 2, bedrooms: 4 },
         ashrae: { target: 68 },
+        prepNotes: 'Please clear a 3-ft path to the attic hatch and keep pets secured during the blower-door test.',
         tests: {
           cfm50: 2340, co2: 1180,
           iaq: [
@@ -277,6 +279,7 @@
       ['{{auditor.name}}', 'Field auditor name (Settings)'],
       ['{{site.sqft}} · {{site.yearBuilt}} · {{site.stories}} · {{site.bedrooms}}', 'Site parameters'],
       ['{{ashrae.target}}', 'ASHRAE 62.2 target CFM (if computed)'],
+      ['{{prepNotes}}', 'Customer prep notes from the Assessment Hub (team notes stay internal)'],
       ['{{tests.cfm50}} · {{tests.co2}}', 'Blower-door CFM50 and CO₂ baseline'],
       ['{{#each tests.iaq}} {{name}} {{value}} {{unit}} {{band}} {{/each}}', 'All entered IAQ metrics'],
       ['{{fin.costFmt}} · {{fin.savingsFmt}} · {{fin.paybackFmt}}', 'Totals for the checked measures'],
@@ -346,6 +349,7 @@
 '<section class="pd-page">',
 '  <div class="pd-brand"><span class="logo">{{{brandIcon}}}</span> {{company}}</div>',
 '  <h2>Next Steps</h2>',
+'  {{#if prepNotes}}<div class="pd-measure"><h3>How to prepare for the work</h3><p>{{prepNotes}}</p></div>{{/if}}',
 '  <p style="font-size:13.5px;color:var(--muted)">Accepting this proposal reserves your place on our installation calendar. Savings estimates are based on your home’s measured performance and current utility rates; actual results vary with weather and occupancy. Pricing is valid for 30 days from the date above. Rebate values depend on program availability at the time of installation.</p>',
 '  <div class="pd-sign"><div>Homeowner signature / date</div><div>{{company}} representative / date</div></div>',
 '  <p class="pd-fineprint">Prepared with {{company}} field diagnostics. Assessment data — including blower-door depressurization, combustion safety hard-stops, and indoor air quality baselines — is retained in your audit record and available on request.</p>',

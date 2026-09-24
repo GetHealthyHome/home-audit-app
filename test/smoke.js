@@ -119,6 +119,19 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   await page.waitForTimeout(400);
   assert((await body()).includes('Assessment Hub') || (await body()).includes('Blower Door Test'), 'hub renders after create');
 
+  // --- Visit notes: team + customer-prep boxes above Diagnostics ---
+  assert((await body()).includes('Visit Notes'), 'visit notes card renders on the hub');
+  const notesFirst = await page.evaluate(() => {
+    const screenHtml = document.querySelector('#app').innerHTML;
+    return screenHtml.indexOf('Visit Notes') < screenHtml.indexOf('Diagnostics');
+  });
+  assert(notesFirst, 'notes card sits above the Diagnostics section');
+  await page.fill('textarea[data-bind="notes.team"]', 'Dog in the yard; customer prefers texts.');
+  await page.fill('textarea[data-bind="notes.customerPrep"]', 'Clear boxes away from the attic hatch before install day.');
+  await page.waitForTimeout(300);
+  const savedNotes = await page.evaluate(() => Store.activeEval().notes);
+  assert(savedNotes.team.indexOf('Dog in the yard') === 0 && savedNotes.customerPrep.indexOf('Clear boxes') === 0, 'both note boxes write through to the evaluation');
+
   // --- Diagnostics how-to guides (tap the ? icon on a section) ---
   assert(await page.locator('.module-row .row-help').count() === 4, 'each diagnostics row carries a help icon');
   await page.click('.row-help[data-route="#/guide/blower"]');
@@ -312,6 +325,8 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   assert(await page.locator('.pd-gallery figure').count() === 2, 'selected photos render in evidence section');
   assert(txt.includes('Fig 1:') && txt.includes('Fig 2:'), 'photo figures numbered');
   assert(txt.includes('BLOWER-SETUP'), 'required-photo ID appears in the proposal figure caption');
+  assert(txt.includes('How to prepare for the work') && txt.includes('Clear boxes away from the attic hatch'), 'customer prep notes render in the proposal Next Steps');
+  assert(!txt.includes('Dog in the yard'), 'internal team notes stay out of the customer document');
   const totalBefore = await page.evaluate(() =>
     Store.financials(Store.activeEval(), Proposal.includedIds(Store.activeEval())).cost);
   await shot('02-proposal-default');
@@ -619,6 +634,61 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   await page.click('[data-action="admin-media-tags-reset"]');
   await page.waitForTimeout(300);
   assert((await page.evaluate(() => Store.mediaTags())).indexOf('Moisture') >= 0, 'tag reset restores the default list');
+
+  // --- Bulk CSV templates: parser, round trips, validation ---
+  const csvUnit = await page.evaluate(() => {
+    const rows = CSVX.parse('a,b\r\n"x, y","say ""hi""\nline2"\r\n');
+    return { rows: rows, back: CSVX.stringify([['q', 'w,e'], ['"z"', '']]) };
+  });
+  assert(csvUnit.rows.length === 2 && csvUnit.rows[1][0] === 'x, y' && csvUnit.rows[1][1] === 'say "hi"\nline2', 'CSV parser handles quotes, commas and newlines');
+  assert(csvUnit.back === 'q,"w,e"\r\n"""z""",\r\n', 'CSV stringify escapes correctly');
+
+  const csvRT = await page.evaluate(() => {
+    const snap = () => ({
+      cat: Store.catalog().length, mats: Store.materials().length,
+      rules: Store.pricingRules().length, guides: Store.guides().length,
+      cellCost: parseFloat(Store.measure('cellulose').cost),
+      cellSuggest: (Store.measure('cellulose').suggest || []).length,
+      blowerSteps: Store.guide('blower').steps.length,
+      checks: Store.prompts('blowerChecklist').length,
+      mots: Store.prompts('motivations').join('|')
+    });
+    const before = snap();
+    ['catalog', 'materials', 'pricing', 'prompts', 'guides'].forEach(s => Admin.csvImport(s, Admin.csvTemplate(s)));
+    const after = snap();
+    let err = null;
+    try { Admin.csvImport('materials', 'wrong,header,row\nx,y,z'); } catch (e) { err = e.message; }
+    let opErr = null;
+    try { Admin.csvImport('pricing', Admin.CSV_HEADERS.pricing.join(',') + '\nr1,Rule,*,site.sqft,between,5,flat,10'); } catch (e) { opErr = e.message; }
+    const crew = Admin.csvImport('crew', Admin.csvTemplate('crew'));
+    return { before, after, err, opErr, afterBad: snap(), crewLast: crew[crew.length - 1] };
+  });
+  assert(JSON.stringify(csvRT.before) === JSON.stringify(csvRT.after), 'every section survives a template download → upload round trip');
+  assert(csvRT.err && csvRT.err.indexOf('Wrong template') === 0, 'wrong headers are rejected with a helpful message');
+  assert(csvRT.opErr && csvRT.opErr.indexOf('Row 2') === 0, 'bad op value is rejected with its row number');
+  assert(JSON.stringify(csvRT.after) === JSON.stringify(csvRT.afterBad), 'a failed import changes nothing');
+  assert(csvRT.crewLast.email === 'new.tech@example.com' && csvRT.crewLast.role === 'auditor' && csvRT.crewLast.password === 'TempPass-123', 'crew template parses into account rows');
+
+  // Upload a filled materials template through the real file chooser.
+  const matsBackup = await page.evaluate(() => Admin.csvTemplate('materials'));
+  await page.goto(APP + '#/admin/materials');
+  await page.waitForTimeout(400);
+  assert((await body()).includes('Bulk Edit via Spreadsheet'), 'materials screen offers the bulk template card');
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.click('[data-action="csv-upload"][data-section="materials"]')
+  ]);
+  await chooser.setFiles({
+    name: 'materials.csv', mimeType: 'text/csv',
+    buffer: Buffer.from('id,name,unit,cost_per_unit,quantity_from\r\n,Spray Foam Kit,sqft,3.25,site.sqft\r\n,Disposal Fee,flat,95,\r\n')
+  });
+  await page.waitForTimeout(500);
+  const uploadedMats = await page.evaluate(() => Store.materials().map(m => m.name));
+  assert(uploadedMats.length === 2 && uploadedMats[0] === 'Spray Foam Kit' && uploadedMats[1] === 'Disposal Fee', 'uploaded template replaces the materials catalog');
+  assert((await body()).includes('Spray Foam Kit'), 'screen re-renders with the uploaded rows');
+  await shot('06c-bulk-template');
+  await page.evaluate((csv) => Admin.csvImport('materials', csv), matsBackup);
+  await page.waitForTimeout(200);
 
   // Config persists across reload; export/import round-trips
   await page.reload();
