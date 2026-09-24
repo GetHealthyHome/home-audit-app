@@ -659,6 +659,16 @@ select.input {
   .tpl-editor { min-height: 520px; font-size: 13px; }
 }
 
+/* ---------- Password visibility toggle ---------- */
+.pw-wrap { position: relative; }
+.pw-wrap input { width: 100%; padding-right: 46px; box-sizing: border-box; }
+.pw-eye {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  border: none; background: none; color: var(--muted); font-size: 19px;
+  padding: 9px; display: inline-flex; align-items: center; border-radius: 8px;
+}
+.pw-eye:active { color: var(--green); }
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%) translateY(16px);

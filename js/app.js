@@ -547,6 +547,16 @@
           })
           .then(function () { rerender(); });
       },
+      'pw-toggle': function () {
+        var wrap = el.closest('.pw-wrap');
+        var inp = wrap && wrap.querySelector('input');
+        if (!inp) return;
+        var show = inp.type === 'password';
+        inp.type = show ? 'text' : 'password';
+        el.innerHTML = icon(show ? 'eyeOff' : 'eye');
+        el.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        inp.focus();
+      },
       'auth-change-pass': function () {
         var inp = document.querySelector('[data-bind="login.newPassword"]');
         var pw = inp ? inp.value : '';
