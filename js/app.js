@@ -54,6 +54,10 @@
   function evalFromRoute(parts) {
     // ['eval', id, screen, ...]
     var ev = Store.getEval(parts[1]);
+    if (ev && !Store.canSee(ev)) {
+      UI.toast('That evaluation is assigned to another auditor.');
+      return null;
+    }
     if (ev) Store.setActive(ev.id);
     return ev;
   }
@@ -71,6 +75,7 @@
       if (ev.status === 'scheduled' && screen !== 'hub') ev.status = 'in-progress';
       switch (screen) {
         case 'hub': html = ScreenHub(ev); break;
+        case 'details': html = ScreenEvalDetails(ev); break;
         case 'site': html = ScreenSite(ev); break;
         case 'zone': html = ScreenZone(ev, parts[3]); break;
         case 'mechanicals': html = ScreenMechanicals(ev); break;
@@ -174,6 +179,10 @@
   function startIaqTick(ev) {
     var t = ev.tests.iaq;
     if (!t.startedAt || t.finishedAt) return;
+    /* Window already elapsed: the screen is in results entry — do NOT start
+       the countdown interval, whose first tick re-renders and would fling
+       the scroll position back to the top every second while typing. */
+    if (DATA.IAQ_MINUTES * 60 * 1000 - (Date.now() - t.startedAt) <= 0) return;
     iaqTimer = setInterval(function () {
       var el = document.getElementById('iaq-countdown');
       var total = DATA.IAQ_MINUTES * 60 * 1000;
@@ -289,6 +298,16 @@
       }).catch(function (err) {
         UI.toast('Upload failed: ' + err.message);
       });
+      return;
+    }
+    if (e.target.id === 'assign-auditor-select') {
+      var ev = Store.activeEval();
+      if (!ev) return;
+      var email = e.target.value;
+      var prof = (RosterCache.list || []).filter(function (u) { return u.email === email; })[0];
+      ev.assignedTo = email ? { email: email, name: (prof && prof.name) || email } : { email: '', name: '' };
+      Store.save(); rerender();
+      UI.toast(email ? 'Assigned to ' + ((prof && prof.name) || email) + '.' : 'Evaluation unassigned — visible to all crew.');
       return;
     }
     var bind = e.target.getAttribute && e.target.getAttribute('data-bind');

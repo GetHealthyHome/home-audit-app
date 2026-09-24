@@ -117,7 +117,19 @@ in the field.
   function, which verifies the caller's admin role server-side before using
   the service key. Signed-in crew can change their own password in Settings.
   Without a configured backend the app is single-device and admin features
-  stay open.
+  stay open. **Assessment visibility is role-scoped**: every evaluation is
+  assigned to an auditor (defaulting to whoever created it); admins see
+  every evaluation, an auditor sees only their own customers plus
+  unassigned ones, and a direct link to another auditor's evaluation
+  bounces back to the dashboard. Scoping is enforced server-side too: an
+  `owner_email` column on `audits` with RLS (`is_admin() or owner is null
+  or owner = auth email`), so pull-down only returns rows the sign-in may
+  see.
+- **Evaluation Details** (edit icon on the Assessment Hub's customer card)
+  — everything captured at creation stays editable afterwards: customer
+  name/address/phone/email, visit type/date/time, motivation, heating
+  system, and the **assigned auditor** (picked from the crew roster when
+  signed in, free-text offline).
 - **Desktop layout** — on screens ≥940px the bottom tab bar becomes a left
   navigation rail, the content column widens and centers, and photo/media
   grids use the extra room (pure CSS; same markup serves phone and desktop).
