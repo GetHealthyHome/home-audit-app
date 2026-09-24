@@ -45,6 +45,9 @@
       navCard('#/admin/guides', 'help', 'Diagnostics Guides',
         'Step-by-step test instructions with photos or an attached PDF',
         UI.pill(a.guides ? 'progress' : 'complete', a.guides ? 'Customized' : 'Default')) +
+      navCard('#/admin/media', 'camera', 'Media Settings',
+        'Date/time + GPS photo stamp, and the tag list offered after each capture',
+        UI.pill(a.media && a.media.stamp ? 'progress' : 'complete', a.media && a.media.stamp ? 'Stamp on' : 'Stamp off')) +
       navCard('#/template', 'edit', 'Proposal Template',
         'The HTML design customer proposals are generated from',
         UI.pill(Store.state.proposalTemplate ? 'progress' : 'complete', Store.state.proposalTemplate ? 'Customized' : 'Default')) +
@@ -203,6 +206,41 @@
       '<div style="height:8px"></div>' +
       '<button class="btn danger-ghost" data-action="admin-material-delete" data-matid="' + esc(mat.id) + '">Delete this material</button>' +
       '</div></div>';
+  };
+
+  /* ---------------- Media settings: photo stamp + tag list ---------------- */
+  window.ScreenAdminMedia = function () {
+    var m = Admin.ensureMedia();
+    var tags = Store.mediaTags();
+
+    return UI.subbar('Media Settings', '#/admin') +
+      '<div class="screen">' +
+      '<h1 class="screen-title">Media Settings</h1>' +
+      '<p class="screen-sub">How photos are captured and organized across every assessment on this device (include it in your config export to apply crew-wide).</p>' +
+
+      '<div class="card">' + UI.sectionHeading('Photo Stamp', 'camera') +
+      '<button class="check-row" data-action="admin-stamp-toggle">' +
+      '<span class="cbox ' + (m.stamp ? 'on' : '') + '">' + icon('check') + '</span>' +
+      '<span class="cbody"><b>Stamp date, time &amp; GPS on photos</b>' +
+      '<span>Burns the capture date/time and longitude &amp; latitude into the lower-right corner of every new photo. Uses the device’s location (the browser asks once); if GPS is unavailable the photo is stamped with date/time only.</span></span>' +
+      '</button>' +
+      (m.stamp ? '<p class="hint" style="margin-top:8px">' + icon('info') + ' Applies to photos taken from now on — existing photos are unchanged.</p>' : '') +
+      '</div>' +
+
+      '<div class="card">' + UI.sectionHeading('Media Tags', 'photo') +
+      '<p class="hint">One tag per line. Auditors pick from this list right after taking a picture in any section, and in Media Review. Tags travel with the photo for filtering and documentation.</p>' +
+      UI.field({ label: 'Tag list', bind: 'admin.media.tags', textarea: true, value: m.tags }) +
+      '<div class="filter-chips" style="margin-top:10px">' + tags.map(function (t) {
+        return '<span class="chip on" style="pointer-events:none">' + esc(t) + '</span>';
+      }).join('') + '</div>' +
+      '<div style="height:10px"></div>' +
+      '<button class="btn small danger-ghost" style="width:auto" data-action="admin-media-tags-reset">Reset to default tags</button>' +
+      '</div>' +
+
+      '<div class="card">' + UI.sectionHeading('Required Photo IDs', 'info') +
+      '<p class="hint">Every required photo slot carries a unique ID (for example <code>ATTIC-MEDIA-1</code> or <code>BLOWER-SETUP</code>) shown on the slot after capture, in Media Review, and in the proposal’s photo captions — so anyone reading the proposal can trace a figure back to exactly where it was captured in the assessment.</p>' +
+      '</div>' +
+      '</div>';
   };
 
   /* ---------------- Diagnostics guides list ---------------- */

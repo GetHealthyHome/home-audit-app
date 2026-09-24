@@ -73,6 +73,7 @@
             case 'prompts': html = ScreenAdminPrompts(); break;
             case 'guides': html = ScreenAdminGuides(); break;
             case 'guide': html = ScreenAdminGuide(parts[2]); break;
+            case 'media': html = ScreenAdminMedia(); break;
             default: html = ScreenAdmin();
           }
           break;
@@ -338,9 +339,29 @@
         };
         UI.pickPhoto().then(function (file) {
           if (!file) return;
-          Store.addPhoto(ev, meta, file).then(function () { rerender(); })
+          Store.addPhoto(ev, meta, file).then(function (p) { rerender(); UI.tagSheet(ev, p.id); })
             .catch(function () { UI.toast('Could not read that image.'); });
         });
+      },
+      'sheet-tag-toggle': function () {
+        var p = ev && ev.photos.filter(function (x) { return x.id === el.getAttribute('data-photo'); })[0];
+        if (!p) return;
+        var t = el.getAttribute('data-tag');
+        p.tags = p.tags || [];
+        var i = p.tags.indexOf(t);
+        if (i >= 0) p.tags.splice(i, 1); else p.tags.push(t);
+        Store.save();
+        UI.tagSheet(ev, p.id);
+      },
+      'sheet-close': function () { UI.closeTagSheet(); rerender(); },
+      'media-tag-toggle': function () {
+        var p = ev && ev.photos.filter(function (x) { return x.id === el.getAttribute('data-photo'); })[0];
+        if (!p) return;
+        var t = el.getAttribute('data-tag');
+        p.tags = p.tags || [];
+        var i = p.tags.indexOf(t);
+        if (i >= 0) p.tags.splice(i, 1); else p.tags.push(t);
+        Store.save(); rerender();
       },
       'photo-remove': function () {
         Store.removePhoto(ev, el.getAttribute('data-photo'));
@@ -357,7 +378,7 @@
         UI.pickPhoto().then(function (file) {
           if (!file) return;
           Store.addPhoto(ev, { slotKey: 'blower-' + pid, zone: 'blower', label: def.label, required: def.required }, file)
-            .then(function (p) { ev.tests.blower.photos[pid] = p.id; Store.save(); rerender(); });
+            .then(function (p) { ev.tests.blower.photos[pid] = p.id; Store.save(); rerender(); UI.tagSheet(ev, p.id); });
         });
       },
       'blower-photo-remove': function () {
@@ -387,6 +408,7 @@
               ev.tests.caz.tests[id] = ev.tests.caz.tests[id] || {};
               ev.tests.caz.tests[id].photoId = p.id;
               Store.save(); rerender();
+              UI.tagSheet(ev, p.id);
             });
         });
       },
@@ -437,6 +459,19 @@
         Store.save(); rerender();
       },
       'tpl-view': function () { uiState.tplView = el.getAttribute('data-view'); rerender(); },
+      /* ---- Media settings (admin) ---- */
+      'admin-stamp-toggle': function () {
+        var m = Admin.ensureMedia();
+        m.stamp = !m.stamp;
+        Store.save(); rerender();
+      },
+      'admin-media-tags-reset': function () {
+        if (!confirm('Restore the default media tag list?')) return;
+        Admin.ensureMedia().tags = DATA.MEDIA_TAGS.join('\n');
+        Store.save();
+        UI.toast('Default tags restored.');
+        rerender();
+      },
       /* ---- Diagnostics guide editor ---- */
       'guide-step-add': function () {
         var guides = Admin.ensureGuides();

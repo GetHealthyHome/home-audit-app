@@ -271,11 +271,14 @@
       var url = Store.photoUrl(p.id);
       if (!url) return '';
       var untagged = !p.zone || !p.label;
+      var ref = Store.photoRef(p);
       return '<button class="media-tile' + (untagged ? ' untagged' : '') + (p.id === editingPhotoId ? ' editing' : '') + '"' +
         ' data-action="media-edit" data-photo="' + p.id + '">' +
         '<img src="' + url + '" alt="' + esc(p.label || 'Photo') + '">' +
+        (ref ? '<span class="ref-badge" title="Proposal photo ID">' + esc(ref) + '</span>' : '') +
         '<span class="meta">' + esc(p.label || 'Untitled') + '<br>' + esc((p.ts || '').slice(0, 10)) + ' · ' + esc(p.inspector || '') +
-        (p.storagePath ? ' · ☁' : '') + '</span>' +
+        (p.storagePath ? ' · ☁' : '') +
+        ((p.tags || []).length ? '<br>' + esc(p.tags.join(' · ')) : '') + '</span>' +
         '</button>';
     }).join('') + '</div>';
 
@@ -285,10 +288,17 @@
       ev.photos.forEach(function (p, i) { if (p.id === editingPhotoId) idx = i; });
       if (idx >= 0) {
         var p = ev.photos[idx];
+        var pref = Store.photoRef(p);
         editor = '<div class="tag-editor">' +
-          '<b style="display:block;margin-bottom:10px">Tag this photo</b>' +
+          '<b style="display:block;margin-bottom:10px">Tag this photo' +
+          (pref ? ' <code style="font-size:11px;color:var(--muted)">' + esc(pref) + '</code>' : '') + '</b>' +
           UI.field({ label: 'Label', bind: 'photos.' + idx + '.label', placeholder: 'e.g. Furnace 1: Exhaust Vent', value: p.label }) +
           UI.field({ label: 'Zone', bind: 'photos.' + idx + '.zone', options: DATA.ZONES.map(function (z) { return z.id; }).concat(['blower', 'caz']), value: p.zone }) +
+          '<div class="field"><label>Tags</label><div class="filter-chips">' + Store.mediaTags().map(function (t) {
+            var on = (p.tags || []).indexOf(t) >= 0;
+            return '<button class="chip ' + (on ? 'on' : '') + '" data-action="media-tag-toggle"' +
+              ' data-photo="' + esc(p.id) + '" data-tag="' + esc(t) + '">' + esc(t) + '</button>';
+          }).join('') + '</div></div>' +
           '<div class="btn-row" style="margin:4px 0 0">' +
           '<button class="btn small primary" data-action="media-edit-done">Done</button>' +
           '<button class="btn small danger-ghost" data-action="photo-remove" data-photo="' + p.id + '">Delete Photo</button>' +
