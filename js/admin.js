@@ -268,6 +268,212 @@
       else delete Store.state.proposalTemplate;
       ensureAdmin();
       Store.save();
+    },
+
+    /* ---------- Bulk CSV templates ----------
+       Each admin section round-trips through a spreadsheet: Download
+       Template gives the current data as CSV with the right headers, the
+       admin edits it in Excel/Sheets, and Upload replaces the section.
+       Lists inside a cell use "; " (benefits, materials); suggest-when
+       conditions are "field|op|value" triples separated by "; ". */
+    CSV_HEADERS: {
+      crew: ['email', 'name', 'role', 'temp_password'],
+      catalog: ['id', 'category', 'name', 'icon', 'impact', 'flat_cost', 'materials', 'description', 'science', 'benefits', 'suggest_when'],
+      materials: ['id', 'name', 'unit', 'cost_per_unit', 'quantity_from'],
+      prompts: ['section', 'id', 'name', 'description'],
+      pricing: ['id', 'rule_name', 'measure', 'field', 'op', 'value', 'adjust_type', 'amount'],
+      guides: ['guide', 'entry', 'order', 'text', 'photo_or_pdf_url']
+    },
+
+    csvTemplate: function (section) {
+      var H = Admin.CSV_HEADERS[section];
+      var rows = [H.slice()];
+      if (section === 'crew') {
+        var roster = (window.CrewCache && CrewCache.list) || [];
+        if (roster.length) {
+          roster.forEach(function (u) { rows.push([u.email || '', u.name || '', u.role || 'auditor', '']); });
+        }
+        rows.push(['new.tech@example.com', 'Alex Example', 'auditor', 'TempPass-123']);
+      } else if (section === 'catalog') {
+        Store.catalog().forEach(function (m) {
+          rows.push([m.id, m.cat || '', m.name || '', m.icon || 'bolt', m.impact || '',
+            m.cost == null ? '' : m.cost,
+            (m.materials || []).join('; '),
+            m.desc || '', m.science || '',
+            Store.measureBenefits(m).join('; '),
+            (m.suggest || []).map(function (c) { return c.field + '|' + c.op + '|' + (c.value == null ? '' : c.value); }).join('; ')]);
+        });
+      } else if (section === 'materials') {
+        Store.materials().forEach(function (m) {
+          rows.push([m.id, m.name || '', m.unit || 'sqft', m.cost == null ? '' : m.cost, m.qty || '']);
+        });
+      } else if (section === 'prompts') {
+        Store.prompts('motivations').forEach(function (s) { rows.push(['motivation', '', s, '']); });
+        Store.prompts('heatTypes').forEach(function (s) { rows.push(['heat_type', '', s, '']); });
+        Store.prompts('blowerChecklist').forEach(function (c) { rows.push(['blower_check', c.id, c.name, c.desc || '']); });
+        Store.prompts('cazTests').forEach(function (t) { rows.push(['caz_test', t.id, t.name, t.desc || '']); });
+      } else if (section === 'pricing') {
+        Store.pricingRules().forEach(function (r) {
+          rows.push([r.id, r.name || '', r.measureId || '*', r.field || '', r.op || 'set',
+            r.value == null ? '' : r.value, r.adjustType || 'flat', r.amount == null ? '' : r.amount]);
+        });
+        if (Store.pricingRules().length === 0) {
+          rows.push(['', 'Example: big-home labor', '*', 'site.sqft', 'gt', '3000', 'flat', '250']);
+        }
+      } else if (section === 'guides') {
+        Store.guides().forEach(function (g) {
+          rows.push([g.id, 'intro', '', g.intro || '', '']);
+          rows.push([g.id, 'pdf', '', '', g.pdf || '']);
+          (g.steps || []).forEach(function (s, i) {
+            rows.push([g.id, 'step', i + 1, s.text || '', s.photo || '']);
+          });
+        });
+      }
+      return CSVX.stringify(rows);
+    },
+
+    /* Parse an uploaded CSV and replace the section. Throws with a
+       row-numbered message on bad input; nothing is written on failure.
+       Crew is handled by the caller (rows become async account calls). */
+    csvImport: function (section, text) {
+      var H = Admin.CSV_HEADERS[section];
+      var rows = CSVX.parse(text);
+      if (!rows.length) throw new Error('The file is empty.');
+      var header = rows[0].map(function (h) { return String(h).trim().toLowerCase(); });
+      for (var hi = 0; hi < H.length; hi++) {
+        if (header[hi] !== H[hi]) {
+          throw new Error('Wrong template — expected column ' + (hi + 1) + ' to be "' + H[hi] + '" (found "' + (header[hi] || 'nothing') + '"). Download the template for this section and edit that file.');
+        }
+      }
+      var body = rows.slice(1);
+      function cell(r, i) { return String(r[i] == null ? '' : r[i]).trim(); }
+      function splitList(s) {
+        return s ? s.split(';').map(function (x) { return x.trim(); }).filter(Boolean) : [];
+      }
+      function oneOf(val, list, row, what) {
+        if (list.indexOf(val) < 0) throw new Error('Row ' + row + ': ' + what + ' must be one of ' + list.join(', ') + ' (found "' + val + '").');
+        return val;
+      }
+      var opIds = Admin.OPS.map(function (o) { return o.id; });
+
+      if (section === 'crew') {
+        return body.map(function (r, i) {
+          var email = cell(r, 0);
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Row ' + (i + 2) + ': "' + email + '" is not a valid email.');
+          return {
+            email: email, name: cell(r, 1),
+            role: oneOf(cell(r, 2) || 'auditor', ['auditor', 'admin'], i + 2, 'role'),
+            password: cell(r, 3)
+          };
+        });
+      }
+
+      var a = ensureAdmin();
+
+      if (section === 'catalog') {
+        var oldCat = Store.catalog();
+        a.catalog = body.map(function (r, i) {
+          var row = i + 2;
+          if (!cell(r, 2)) throw new Error('Row ' + row + ': every measure needs a name.');
+          var id = cell(r, 0) || Store.uid('m');
+          var prev = oldCat.filter(function (m) { return m.id === id; })[0];
+          var m = prev ? JSON.parse(JSON.stringify(prev)) : {};
+          m.id = id;
+          m.cat = cell(r, 1) || 'Uncategorized';
+          m.name = cell(r, 2);
+          m.icon = cell(r, 3) || 'bolt';
+          m.impact = cell(r, 4);
+          m.cost = cell(r, 5) === '' ? '' : parseFloat(cell(r, 5));
+          if (cell(r, 5) !== '' && isNaN(m.cost)) throw new Error('Row ' + row + ': flat_cost must be a number.');
+          m.materials = splitList(cell(r, 6));
+          m.desc = cell(r, 7);
+          m.science = cell(r, 8);
+          m.benefits = splitList(cell(r, 9));
+          m.suggest = splitList(cell(r, 10)).map(function (s) {
+            var parts = s.split('|');
+            if (parts.length < 2) throw new Error('Row ' + row + ': suggest_when entries look like field|op|value (found "' + s + '").');
+            return { field: parts[0].trim(), op: oneOf(parts[1].trim(), opIds, row, 'suggest op'), value: (parts[2] || '').trim() };
+          });
+          return m;
+        });
+      } else if (section === 'materials') {
+        var oldMats = Store.materials();
+        a.materials = body.map(function (r, i) {
+          var row = i + 2;
+          if (!cell(r, 1)) throw new Error('Row ' + row + ': every material needs a name.');
+          var id = cell(r, 0) || Store.uid('mat');
+          var prev = oldMats.filter(function (m) { return m.id === id; })[0];
+          var m = prev ? JSON.parse(JSON.stringify(prev)) : {};
+          m.id = id;
+          m.name = cell(r, 1);
+          m.unit = oneOf(cell(r, 2) || 'sqft', ['sqft', 'each', 'flat'], row, 'unit');
+          m.cost = cell(r, 3) === '' ? '' : parseFloat(cell(r, 3));
+          if (cell(r, 3) !== '' && isNaN(m.cost)) throw new Error('Row ' + row + ': cost_per_unit must be a number.');
+          if (m.unit === 'flat') delete m.qty; else m.qty = cell(r, 4) || 'site.sqft';
+          return m;
+        });
+      } else if (section === 'prompts') {
+        var p = { motivations: [], heatTypes: [], blowerChecklist: [], cazTests: [] };
+        var oldCaz = Store.prompts('cazTests');
+        body.forEach(function (r, i) {
+          var row = i + 2;
+          var sec = oneOf(cell(r, 0), ['motivation', 'heat_type', 'blower_check', 'caz_test'], row, 'section');
+          var name = cell(r, 2);
+          if (!name) throw new Error('Row ' + row + ': the name column is required.');
+          if (sec === 'motivation') p.motivations.push(name);
+          else if (sec === 'heat_type') p.heatTypes.push(name);
+          else if (sec === 'blower_check') p.blowerChecklist.push({ id: cell(r, 1) || Store.uid('chk'), name: name, desc: cell(r, 3) });
+          else {
+            var prevT = oldCaz.filter(function (t) { return t.id === cell(r, 1); })[0];
+            p.cazTests.push({ id: cell(r, 1) || Store.uid('caz'), name: name, icon: (prevT && prevT.icon) || 'shield', desc: cell(r, 3) });
+          }
+        });
+        if (!p.motivations.length || !p.heatTypes.length) throw new Error('The file needs at least one motivation row and one heat_type row.');
+        a.prompts = {
+          motivations: p.motivations.join('\n'),
+          heatTypes: p.heatTypes.join('\n'),
+          blowerChecklist: p.blowerChecklist,
+          cazTests: p.cazTests
+        };
+      } else if (section === 'pricing') {
+        a.pricingRules = body.map(function (r, i) {
+          var row = i + 2;
+          if (!cell(r, 3)) throw new Error('Row ' + row + ': every rule needs a field path.');
+          return {
+            id: cell(r, 0) || Store.uid('rule'),
+            name: cell(r, 1) || 'Imported rule',
+            measureId: cell(r, 2) || '*',
+            field: cell(r, 3),
+            op: oneOf(cell(r, 4) || 'set', opIds, row, 'op'),
+            value: cell(r, 5),
+            adjustType: oneOf(cell(r, 6) || 'flat', ['flat', 'persqft', 'pct'], row, 'adjust_type'),
+            amount: cell(r, 7)
+          };
+        });
+      } else if (section === 'guides') {
+        var guides = JSON.parse(JSON.stringify(Store.guides()));
+        var ids = guides.map(function (g) { return g.id; });
+        var touched = {};
+        var steps = {};
+        body.forEach(function (r, i) {
+          var row = i + 2;
+          var gid = oneOf(cell(r, 0), ids, row, 'guide');
+          var g = guides.filter(function (x) { return x.id === gid; })[0];
+          var entry = oneOf(cell(r, 1), ['intro', 'pdf', 'step'], row, 'entry');
+          if (!touched[gid]) { touched[gid] = true; g.intro = ''; g.pdf = ''; steps[gid] = []; }
+          if (entry === 'intro') g.intro = cell(r, 3);
+          else if (entry === 'pdf') g.pdf = cell(r, 4);
+          else steps[gid].push({ order: parseFloat(cell(r, 2)) || steps[gid].length + 1, text: cell(r, 3), photo: cell(r, 4) });
+        });
+        Object.keys(steps).forEach(function (gid) {
+          var g = guides.filter(function (x) { return x.id === gid; })[0];
+          g.steps = steps[gid].sort(function (x, y) { return x.order - y.order; })
+            .map(function (s) { return { text: s.text, photo: s.photo }; });
+        });
+        a.guides = guides;
+      }
+      Store.save();
+      return { count: body.length };
     }
   };
 })();

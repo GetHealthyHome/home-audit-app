@@ -4,6 +4,19 @@
 (function () {
   var esc = UI.esc;
 
+  /* Bulk-template card shared by every admin section: download the current
+     data as a CSV template, edit it in a spreadsheet, upload it back. */
+  function bulkCard(section, blurb) {
+    return '<div class="card" style="margin-top:16px">' + UI.sectionHeading('Bulk Edit via Spreadsheet', 'export') +
+      '<p class="hint">' + blurb + ' Download the template (your current data, ready to edit in Excel or Google Sheets), make your changes, and upload it back — much faster than editing one item at a time.</p>' +
+      '<div class="btn-row" style="margin:10px 0 0">' +
+      '<button class="btn small secondary" data-action="csv-download" data-section="' + section + '">' + icon('export') + ' Download Template</button>' +
+      '<button class="btn small secondary" data-action="csv-upload" data-section="' + section + '">Upload Filled Template</button>' +
+      '</div>' +
+      '<input type="file" id="csv-upload-file" accept=".csv,text/csv" style="display:none">' +
+      '</div>';
+  }
+
   /* ---------------- Admin hub ---------------- */
   window.ScreenAdmin = function () {
     var a = Admin.ensure();
@@ -130,6 +143,7 @@
       (CrewCache.loading ? '<div class="empty"><p>Loading crew…</p></div>' :
         CrewCache.error ? '<div class="empty">' + icon('alert') + '<b>Could not load crew</b><p>' + esc(CrewCache.error) + '</p></div>' :
         rows || '<div class="empty"><p>No accounts yet.</p></div>') +
+      bulkCard('crew', 'Onboard the whole crew at once: one row per account (email, name, role, temporary password).') +
       '</div>';
   };
   window.CrewDraft = {};
@@ -158,6 +172,7 @@
       rows +
       '<div style="height:16px"></div>' +
       '<button class="btn danger-ghost" data-action="admin-materials-reset">Reset materials to defaults</button>' +
+      bulkCard('materials', 'One row per material: unit pricing and which assessment quantity it reads.') +
       '</div>';
   };
 
@@ -263,6 +278,7 @@
       '<h1 class="screen-title">Diagnostics Guides</h1>' +
       '<p class="screen-sub">The step-by-step instructions auditors open from the ' + icon('help') + ' icon on each diagnostics test. Write the steps the way you train new techs — add reference photos, or attach a full PDF procedure.</p>' +
       rows +
+      bulkCard('guides', 'One row per line of a guide: intro, PDF link, and each numbered step with its photo URL.') +
       '</div>';
   };
 
@@ -341,6 +357,7 @@
       body +
       '<div style="height:16px"></div>' +
       '<button class="btn danger-ghost" data-action="admin-catalog-reset">Reset catalog to defaults</button>' +
+      bulkCard('catalog', 'One row per measure, including customer copy, attached materials and suggest-when rules.') +
       '</div>';
   };
 
@@ -452,6 +469,7 @@
       '<p class="screen-sub">Automatically adjust a measure’s cost from answers captured during the audit — square footage, dropdown selections, test readings. Adjustments appear in the Builder and in every proposal, and a manual cost in the Builder always wins.</p>' +
       '<button class="btn primary" data-action="admin-rule-add">' + icon('plus') + ' Add Pricing Rule</button>' +
       (rows || '<div class="empty">' + icon('calc') + '<b>No rules yet</b><p>Example: when crawlspace clearance is less than 36&quot;, add $150 to any measure.</p></div>') +
+      bulkCard('pricing', 'One row per rule: the audit condition and the cost adjustment it applies.') +
       '</div>';
   };
 
@@ -576,6 +594,7 @@
       '<p class="hint">Wording only — the four hard-stops are a fixed safety protocol and cannot be added or removed.</p>' +
       cazRows +
       '</div>' +
+      bulkCard('prompts', 'One row per prompt: motivations, heat types, blower checklist items and CAZ wording together.') +
       '</div>';
   };
 })();

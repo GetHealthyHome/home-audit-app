@@ -30,6 +30,7 @@
           return t;
         })()
       },
+      notes: { team: '', customerPrep: '' }, // internal crew notes + customer prep list
       photos: [], // {id, zone, label, required, ts, tag}
       selections: [], // catalog measure ids
       recs: {}, // measureId -> {cost, savings, notes}

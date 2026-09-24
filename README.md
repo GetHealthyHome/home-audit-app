@@ -82,7 +82,19 @@ in the field.
   assessment" in the Catalog with the triggering reason, and the hub shows
   the count. Config lives in local state and can be **exported/imported as
   JSON** to keep crew devices in sync. On desktop, signed-in admins get an
-  **Admin entry in the left navigation rail**.
+  **Admin entry in the left navigation rail**. Every admin section — crew
+  accounts, improvement catalog, materials catalog, audit prompts, pricing
+  rules, diagnostics guides — also supports **bulk editing via spreadsheet
+  templates**: Download Template exports the current data as a CSV with the
+  right headers, edit it in Excel/Google Sheets, and Upload Filled Template
+  replaces the section in one shot (validated with row-numbered errors;
+  nothing changes on a failed import; crew rows become cloud accounts in
+  bulk).
+- **Visit notes** on the Assessment Hub, above the Diagnostics section:
+  internal **team notes about the customer** (access details, pets,
+  scheduling) and **customer prep notes** for the work — the prep notes
+  flow into the proposal's Next Steps as "How to prepare for the work"
+  (`{{prepNotes}}` token); team notes never leave the crew.
 - **Calendar view** on the dashboard (month grid with appointment dots)
 - **Media review & tagging** (required-tag tracking), **audit history**,
   read-only **Assessment Record**, per-audit **JSON export**
