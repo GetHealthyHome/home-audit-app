@@ -323,7 +323,6 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   await page.fill('input[data-bind="admin.catalog.' + newIdx + '.name"]', 'Duct Sealing');
   await page.fill('input[data-bind="admin.catalog.' + newIdx + '.cat"]', 'HVAC Systems');
   await page.fill('input[data-bind="admin.catalog.' + newIdx + '.cost"]', '900');
-  await page.fill('input[data-bind="admin.catalog.' + newIdx + '.savings"]', '120');
   await page.fill('textarea[data-bind="admin.catalog.' + newIdx + '.benefits"]', 'Benefit Alpha\nBenefit Beta');
   await page.waitForTimeout(800);
   const newId = await page.evaluate(i => Store.state.admin.catalog[i].id, newIdx);
@@ -518,6 +517,88 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
     return a && getComputedStyle(a).display === 'none';
   });
   assert(mobAdminHidden, 'admin rail entry exists but stays hidden on the phone tab bar');
+
+  // --- Materials catalog: unit costs priced from assessment quantities ---
+  await page.goto(APP + '#/admin/measure/cellulose');
+  await page.waitForTimeout(400);
+  txt = await body();
+  assert(!txt.includes('Est. ROI') && !txt.includes('Rebate Note') && !txt.includes('Annual Savings'), 'measure editor no longer edits savings/ROI/rebate');
+  assert(txt.includes('Cost Build-Up'), 'measure editor has cost build-up section');
+
+  await page.goto(APP + '#/admin/materials');
+  await page.waitForTimeout(400);
+  assert(await page.locator('[data-route^="#/admin/material/"]').count() === 6, 'materials catalog lists the 6 defaults');
+  assert((await body()).includes('Old Insulation Removal'), 'default materials present');
+
+  // Edit a material's unit cost
+  await page.goto(APP + '#/admin/material/mat-insul-removal');
+  await page.waitForTimeout(400);
+  const remIdx = await page.evaluate(() => Store.state.admin.materials.findIndex(m => m.id === 'mat-insul-removal'));
+  await page.fill('input[data-bind="admin.materials.' + remIdx + '.cost"]', '2');
+  await page.waitForTimeout(800);
+  assert(await page.evaluate(() => parseFloat(Store.material('mat-insul-removal').cost)) === 2, 'material unit cost edited');
+
+  // Attach materials to the custom measure; attic area drives the quantity
+  await page.evaluate(() => {
+    Store.zone(Store.activeEval(), 'attic').fields.sqft = '1200';
+    Store.save();
+  });
+  await page.goto(APP + '#/admin/measure/' + newId);
+  await page.waitForTimeout(400);
+  await page.click('[data-action="admin-mat-toggle"][data-matid="mat-insul-removal"]');
+  await page.waitForTimeout(300);
+  await page.click('[data-action="admin-mat-toggle"][data-matid="mat-cellulose"]');
+  await page.waitForTimeout(400);
+  txt = await body();
+  assert(txt.includes('Base cost: $4,920'), 'editor previews 1200 sqft x ($2.00 + $2.10) = $4,920');
+  const matFin = await page.evaluate(id => {
+    const item = Store.financials(Store.activeEval(), [id]).items[0];
+    return { base: item.base, lines: item.materialLines.length, cost: item.cost };
+  }, newId);
+  assert(matFin.base === 4920 && matFin.lines === 2 && matFin.cost === 4920, 'financials price the measure from materials (4920)');
+
+  // Flat material adds on top
+  await page.click('[data-action="admin-mat-toggle"][data-matid="mat-trip"]');
+  await page.waitForTimeout(400);
+  assert((await body()).includes('Base cost: $5,070'), 'flat material adds $150');
+  await page.click('[data-action="admin-mat-toggle"][data-matid="mat-trip"]');
+  await page.waitForTimeout(300);
+
+  // Builder shows the build-up
+  await page.goto(APP + '#/eval/' + evId + '/builder');
+  await page.waitForTimeout(400);
+  await page.click('[data-action="builder-pick"][data-mid="' + newId + '"]');
+  await page.waitForTimeout(300);
+  txt = await body();
+  assert(txt.includes('Cost build-up from assessment quantities'), 'builder shows materials build-up');
+  assert(txt.includes('Old Insulation Removal') && txt.includes('$4,920'), 'builder itemizes material lines and base');
+
+  // Missing quantity is flagged, not silently zero-priced
+  await page.evaluate(() => {
+    Store.zone(Store.activeEval(), 'attic').fields.sqft = '';
+    Store.save(); window.rerender();
+  });
+  await page.waitForTimeout(400);
+  assert((await body()).includes('enter Attic: Area'), 'missing assessment quantity is called out');
+  await page.evaluate(() => {
+    Store.zone(Store.activeEval(), 'attic').fields.sqft = '1200';
+    Store.save(); window.rerender();
+  });
+  await page.waitForTimeout(300);
+
+  // Piece-count quantities resolve from assessment lines
+  const qtys = await page.evaluate(() => {
+    const ev = Store.activeEval();
+    Store.zone(ev, 'floor1').windows.push({ room: 'A', type: '', glazing: '', condition: '' });
+    Store.zone(ev, 'floor1').windows.push({ room: 'B', type: '', glazing: '', condition: '' });
+    return { windows: Store.quantity(ev, 'calc:windows'), mech: Store.quantity(ev, 'calc:mechanicals'), sqft: Store.quantity(ev, 'site.sqft') };
+  });
+  assert(qtys.windows === 2 && qtys.sqft === 2450, 'quantity resolver reads counts and areas');
+
+  // Attic assessment captures the area feeding materials
+  await page.goto(APP + '#/eval/' + evId + '/zone/attic');
+  await page.waitForTimeout(400);
+  assert((await body()).includes('Attic Area'), 'attic assessment has an area field');
 
   // --- Desktop layout: tab bar becomes a left rail, content widens ---
   const desk = await browser.newPage({ viewport: { width: 1280, height: 900 } });

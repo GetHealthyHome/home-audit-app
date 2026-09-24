@@ -67,7 +67,11 @@
           name: i.measure.name, desc: i.measure.desc, science: i.measure.science || '',
           benefits: Store.measureBenefits(i.measure), rebate: i.measure.rebate || '',
           cost: i.cost, savings: i.savings, base: i.base,
-          adjustments: i.adjustments, notes: i.notes
+          adjustments: i.adjustments,
+          materials: (i.materialLines || []).map(function (l) {
+            return { name: l.name, unit: l.unit, unitCost: l.unitCost, qty: l.qty, cost: l.cost };
+          }),
+          notes: i.notes
         };
       }),
       cost: fin.cost, savings: fin.savings, payback: fin.payback,

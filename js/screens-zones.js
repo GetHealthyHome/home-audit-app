@@ -138,6 +138,7 @@
     return '<div class="card">' + UI.sectionHeading('Insulation Depth', 'ruler') +
       '<p class="hint">Measure average fill across attic floor</p>' +
       UI.field({ label: 'Insulation Type', info: true, bind: zbind(z.id, 'insulationType'), options: DATA.INSULATION_TYPES.map(function (t) { return t.name; }), value: f.insulationType }) +
+      UI.field({ label: 'Attic Area', bind: zbind(z.id, 'sqft'), type: 'number', inputmode: 'numeric', unit: 'sq. ft.', placeholder: '1200', value: f.sqft }) +
       UI.field({ label: 'Measured Depth (Inches)', bind: zbind(z.id, 'depth'), type: 'number', inputmode: 'decimal', unit: 'in', big: true, placeholder: '14', value: f.depth }) +
       (rv ?
         '<div><label style="font:700 12px var(--font-body);color:var(--magenta)">Calculated Rating</label>' +

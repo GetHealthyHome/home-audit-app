@@ -219,5 +219,24 @@ window.DATA = {
       benefits: ['Ends condensation streaking', 'Noticeable acoustic dampening'] }
   ],
 
-  MARKET_AVG_PAYBACK_YEARS: 9
+  MARKET_AVG_PAYBACK_YEARS: 9,
+
+  /* ---- Materials catalog defaults (admin-editable) ----
+     unit: 'sqft' | 'each' | 'flat'. Non-flat materials read their quantity
+     from an assessment value (qty: an audit field path or a calc:* id from
+     Admin.QTY_FIELDS). A measure's base cost = sum of its attached
+     materials' quantity x unit cost. */
+  MATERIALS: [
+    { id: 'mat-insul-removal', name: 'Old Insulation Removal', unit: 'sqft', cost: 1.5,
+      qty: 'zones.attic.fields.sqft' },
+    { id: 'mat-cellulose', name: 'Loose-Fill Cellulose (to R-49)', unit: 'sqft', cost: 2.1,
+      qty: 'zones.attic.fields.sqft' },
+    { id: 'mat-airseal', name: 'Air Sealing Labor & Foam', unit: 'sqft', cost: 0.45,
+      qty: 'site.sqft' },
+    { id: 'mat-vapor-poly', name: '6-mil Poly Vapor Barrier', unit: 'sqft', cost: 0.85,
+      qty: 'zones.crawlspace.fields.sqft' },
+    { id: 'mat-window-unit', name: 'Triple-Pane Window Unit (installed)', unit: 'each', cost: 850,
+      qty: 'calc:windows' },
+    { id: 'mat-trip', name: 'Trip / Setup Charge', unit: 'flat', cost: 150 }
+  ]
 };

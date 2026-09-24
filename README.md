@@ -51,11 +51,16 @@ in the field.
   GitHub web editor and Vercel redeploys the live deck on commit.
 - **Admin Portal** (`#/admin`, from Settings) — company configuration that
   overlays the shipped defaults: manage the **improvement catalog** (add /
-  edit / delete measures: costs, savings, ROI, rebates, science copy,
-  benefits), define **pricing rules** that automatically adjust a measure's
-  cost from audit answers (flat $, $ per sqft, or % of base — conditioned on
-  any audit field: square footage, dropdown selections, test readings; shown
-  as an auto-pricing breakdown in the Builder, overridable per audit), and
+  edit / delete measures: science copy, benefits, cost build-up), maintain a
+  **materials catalog** (unit costs per sqft / per piece / flat, each reading
+  its quantity from an assessment value — attic area, home sqft, crawlspace
+  area, window/vent counts). A measure's **base cost is computed per audit**
+  as the sum of its attached materials' quantity x unit cost (a flat cost is
+  used when no materials are attached, and missing quantities are flagged
+  instead of silently pricing $0); define **pricing rules** that further
+  adjust a measure's cost from audit answers (flat $, $ per sqft, or % of
+  base — conditioned on any audit field; shown together with the material
+  build-up in the Builder, overridable per audit), and
   edit **audit prompts** (motivations, heat types, blower-door checklist
   items, CAZ hard-stop wording). Each measure also carries **suggest-when
   conditions** on assessment data (sqft, dropdown selections, test

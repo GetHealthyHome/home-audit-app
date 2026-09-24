@@ -290,6 +290,47 @@
     pricingRules: function () {
       return (state.admin && state.admin.pricingRules) || [];
     },
+    materials: function () {
+      return (state.admin && state.admin.materials) || DATA.MATERIALS;
+    },
+    material: function (id) {
+      return Store.materials().filter(function (m) { return m.id === id; })[0];
+    },
+
+    /* Resolve an assessment quantity reference (audit field path or calc:*). */
+    quantity: function (ev, ref) {
+      if (ref === 'calc:windows') {
+        var n = 0;
+        ['floor1', 'floor2', 'floor3'].forEach(function (fid) {
+          if (ev.zones[fid] && ev.zones[fid].windows) n += ev.zones[fid].windows.length;
+        });
+        return n;
+      }
+      if (ref === 'calc:mechanicals') {
+        var mech = ev.zones.mechanicals;
+        return mech ? Object.keys(mech.systems || {}).length : 0;
+      }
+      return parseFloat(Store.get(ev, ref)) || 0;
+    },
+
+    /* Cost build-up for a measure's attached materials against this audit.
+       Each line: {name, unit, unitCost, qty, qtyLabel, cost, missing}. */
+    materialLines: function (ev, m) {
+      return (m.materials || []).map(function (id) {
+        var mat = Store.material(id);
+        if (!mat) return null;
+        var unitCost = parseFloat(mat.cost) || 0;
+        if (mat.unit === 'flat') {
+          return { id: mat.id, name: mat.name, unit: 'flat', unitCost: unitCost, qty: 1, qtyLabel: '', cost: Math.round(unitCost), missing: false };
+        }
+        var q = Store.quantity(ev, mat.qty);
+        return {
+          id: mat.id, name: mat.name, unit: mat.unit, unitCost: unitCost,
+          qty: q, qtyLabel: Admin.qtyLabel(mat.qty),
+          cost: Math.round(q * unitCost), missing: !q
+        };
+      }).filter(Boolean);
+    },
 
     /* Measures whose suggest-conditions match this audit's data, with the
        matching condition and the measured value (for the "because…" line).
@@ -390,7 +431,10 @@
         var m = Store.measure(id);
         if (!m) return null;
         var r = ev.recs[id] || {};
-        var base = parseFloat(m.cost) || 0;
+        var lines = Store.materialLines(ev, m);
+        var base = lines.length
+          ? lines.reduce(function (s, l) { return s + l.cost; }, 0)
+          : parseFloat(m.cost) || 0;
         var adjustments = rules.filter(function (rule) {
           return Admin.ruleMatches(rule, ev, id) && (parseFloat(rule.amount) || 0) !== 0;
         }).map(function (rule) {
@@ -401,6 +445,7 @@
         return {
           measure: m,
           base: base,
+          materialLines: lines,
           adjustments: adjustments,
           autoCost: auto,
           cost: isNaN(manual) ? auto : manual,
