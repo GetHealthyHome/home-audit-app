@@ -511,6 +511,8 @@ const APP = 'file://' + path.resolve(__dirname, '..', 'index.html');
   assert((await body()).includes('Edit Proposal Template'), 'settings links to the template editor');
   assert((await body()).includes('Open Admin Portal'), 'settings links to the admin portal');
   assert((await body()).includes('Change Password'), 'settings offers self-service password change');
+  assert((await body()).includes('Test Connection'), 'settings offers a backend connection test');
+  assert((await body()).includes('xeiyzuolymbytegenevi.supabase.co'), 'settings shows the configured backend host');
 
   if (errors.length) throw new Error('Console/page errors:\n' + errors.join('\n'));
   console.log('\nALL SMOKE TESTS PASSED');
