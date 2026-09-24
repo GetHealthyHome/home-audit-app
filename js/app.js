@@ -531,6 +531,22 @@
             CrewCache.list = null; rerender();
           }).catch(function (e) { UI.toast(e.message); });
       },
+      'test-backend': function () {
+        var cfg = window.BACKEND_CONFIG || {};
+        if (!cfg.url) { UI.toast('No backend configured.'); return; }
+        var btn = document.getElementById('test-backend-btn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Testing…'; }
+        var host = cfg.url.replace(/^https?:\/\//, '');
+        fetch(cfg.url + '/auth/v1/health', { headers: { 'apikey': cfg.anonKey } })
+          .then(function (r) {
+            UI.toast(r.ok ? 'Backend reachable — sign-in service is up (' + host + ').'
+              : 'Backend responded HTTP ' + r.status + ' — service may be paused (' + host + ').');
+          })
+          .catch(function () {
+            UI.toast('Cannot reach ' + host + ' — check this device’s internet connection.');
+          })
+          .then(function () { rerender(); });
+      },
       'auth-change-pass': function () {
         var inp = document.querySelector('[data-bind="login.newPassword"]');
         var pw = inp ? inp.value : '';

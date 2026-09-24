@@ -377,8 +377,11 @@
       (Backend.ready()
         ? '<p class="hint">Connected to the HomSci cloud (Supabase). Audits and photos sync when you finalize an assessment, and retry automatically when you come back online.' +
           (sess ? '' : ' <b>Sign in to enable.</b>') + '</p>' +
+          '<p class="hint">Backend: <code>' + UI.esc((window.BACKEND_CONFIG.url || '').replace(/^https?:\/\//, '')) + '</code></p>' +
           '<div style="display:flex;gap:8px;margin-bottom:10px">' + UI.pill(sess ? 'complete' : 'warn', sess ? 'Backend Connected' : 'Sign-in Required') +
           UI.pill('pending', Store.listEvals().filter(function (e) { return e.status === 'complete' && !e.synced && !e.remote; }).length + ' pending') + '</div>' +
+          '<button class="btn secondary" data-action="test-backend" id="test-backend-btn">' + icon('wind') + ' Test Connection</button>' +
+          '<div style="height:8px"></div>' +
           '<button class="btn secondary" data-action="sync-now">' + icon('sync') + ' Sync pending audits now</button>' +
           '<div style="height:8px"></div>' +
           '<button class="btn secondary" data-action="pull-remote">' + icon('export') + ' Pull audits from the cloud</button>'
