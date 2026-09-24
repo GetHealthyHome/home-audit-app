@@ -120,6 +120,25 @@
       return CFG.url + '/storage/v1/object/public/audit-photos/' + storagePath;
     },
 
+    /* Upload a reference file (guide photo / PDF) to the public bucket and
+       return its public URL. Requires a signed-in crew account. */
+    uploadAsset: function (file, folder) {
+      if (!ready()) return Promise.reject(new Error('Backend not configured'));
+      var ext = (file.name && file.name.indexOf('.') >= 0)
+        ? file.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) : 'bin';
+      var path = (folder || 'assets') + '/' + uuid() + '.' + (ext || 'bin');
+      return requireAuth().then(function () {
+        return fetch(CFG.url + '/storage/v1/object/audit-photos/' + path, {
+          method: 'POST',
+          headers: headers({ 'Content-Type': file.type || 'application/octet-stream', 'x-upsert': 'true' }),
+          body: file
+        });
+      }).then(function (r) {
+        if (!r.ok) return r.text().then(function (t) { throw new Error('upload ' + r.status + ': ' + t.slice(0, 120)); });
+        return Backend.publicPhotoUrl(path);
+      });
+    },
+
     /* Push one audit: upsert the record, then upload any photos that
        haven't made it to the cloud yet. Partial progress is remembered. */
     syncAudit: function (ev) {

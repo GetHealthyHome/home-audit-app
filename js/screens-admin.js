@@ -42,6 +42,9 @@
       navCard('#/admin/prompts', 'clipboard', 'Audit Prompts',
         'Motivations, heat types, blower checklist, CAZ wording',
         UI.pill(customPrompts ? 'progress' : 'complete', customPrompts ? 'Customized' : 'Default')) +
+      navCard('#/admin/guides', 'help', 'Diagnostics Guides',
+        'Step-by-step test instructions with photos or an attached PDF',
+        UI.pill(a.guides ? 'progress' : 'complete', a.guides ? 'Customized' : 'Default')) +
       navCard('#/template', 'edit', 'Proposal Template',
         'The HTML design customer proposals are generated from',
         UI.pill(Store.state.proposalTemplate ? 'progress' : 'complete', Store.state.proposalTemplate ? 'Customized' : 'Default')) +
@@ -200,6 +203,77 @@
       '<div style="height:8px"></div>' +
       '<button class="btn danger-ghost" data-action="admin-material-delete" data-matid="' + esc(mat.id) + '">Delete this material</button>' +
       '</div></div>';
+  };
+
+  /* ---------------- Diagnostics guides list ---------------- */
+  window.ScreenAdminGuides = function () {
+    var guides = Admin.ensureGuides();
+    var rows = guides.map(function (g) {
+      var photos = (g.steps || []).filter(function (s) { return s.photo; }).length;
+      var sub = (g.steps || []).length + ' steps' +
+        (photos ? ' · ' + photos + ' photo' + (photos > 1 ? 's' : '') : '') +
+        (g.pdf ? ' · PDF attached' : '');
+      return '<button class="module-row" data-action="nav" data-route="#/admin/guide/' + esc(g.id) + '">' +
+        '<span class="mic">' + icon(g.icon || 'help') + '</span>' +
+        '<span class="mbody"><b>' + esc(g.name) + '</b>' +
+        '<span style="display:block;font:600 11px var(--font-body);color:var(--faint);margin-top:4px">' + esc(sub) + '</span></span>' +
+        '<span class="chev">' + icon('chevR') + '</span></button>';
+    }).join('');
+
+    return UI.subbar('Test Guides', '#/admin') +
+      '<div class="screen">' +
+      '<h1 class="screen-title">Diagnostics Guides</h1>' +
+      '<p class="screen-sub">The step-by-step instructions auditors open from the ' + icon('help') + ' icon on each diagnostics test. Write the steps the way you train new techs — add reference photos, or attach a full PDF procedure.</p>' +
+      rows +
+      '</div>';
+  };
+
+  /* ---------------- Guide editor ---------------- */
+  window.ScreenAdminGuide = function (id) {
+    var guides = Admin.ensureGuides();
+    var gi = -1;
+    guides.forEach(function (g, idx) { if (g.id === id) gi = idx; });
+    if (gi < 0) {
+      return UI.subbar('Guide', '#/admin/guides') +
+        '<div class="screen"><div class="empty">' + icon('help') + '<b>Guide not found</b></div></div>';
+    }
+    var g = guides[gi];
+    var b = 'admin.guides.' + gi;
+    var canUpload = Backend.ready();
+
+    var stepCards = (g.steps || []).map(function (s, si) {
+      return '<div class="card guide-edit-step">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+        '<b>Step ' + (si + 1) + '</b>' +
+        '<button class="btn small danger-ghost" style="width:auto" data-action="guide-step-remove" data-gidx="' + gi + '" data-idx="' + si + '">' + icon('trash') + ' Remove</button></div>' +
+        UI.field({ label: 'Instruction', bind: b + '.steps.' + si + '.text', textarea: true, value: s.text, placeholder: 'What the auditor should do in this step…' }) +
+        (s.photo ? '<img class="gphoto" src="' + esc(s.photo) + '" alt="Step photo">' : '') +
+        UI.field({ label: 'Reference photo URL (optional)', bind: b + '.steps.' + si + '.photo', value: s.photo, placeholder: 'https://…' }) +
+        (canUpload ? '<button class="btn small secondary" style="width:auto" data-action="guide-upload" data-gidx="' + gi + '" data-idx="' + si + '" data-kind="photo">' + icon('camera') + ' Upload Photo</button>' : '') +
+        '</div>';
+    }).join('');
+
+    return UI.subbar('Edit Guide', '#/admin/guides',
+        '<button class="iconbtn" data-action="nav" data-route="#/guide/' + esc(g.id) + '" aria-label="Preview guide">' + icon('eye') + '</button>') +
+      '<div class="screen">' +
+      '<h1 class="screen-title">' + esc(g.name) + '</h1>' +
+      '<p class="screen-sub">Changes save automatically. Tap the eye above to see the guide exactly as auditors will.</p>' +
+      '<div class="card">' +
+      UI.field({ label: 'Guide Title', bind: b + '.name', value: g.name }) +
+      UI.field({ label: 'Intro — why this test matters', bind: b + '.intro', textarea: true, value: g.intro }) +
+      '</div>' +
+      '<div class="card">' + UI.sectionHeading('Full PDF Procedure (optional)', 'doc') +
+      '<p class="hint">If you have a manufacturer manual or company SOP, attach it — auditors get an “Open PDF Guide” button at the top of the guide.</p>' +
+      UI.field({ label: 'PDF URL', bind: b + '.pdf', value: g.pdf, placeholder: 'https://…/procedure.pdf' }) +
+      (canUpload ? '<button class="btn small secondary" style="width:auto" data-action="guide-upload" data-gidx="' + gi + '" data-kind="pdf">' + icon('export') + ' Upload PDF</button>' : '') +
+      '</div>' +
+      UI.sectionHeading('Steps', 'clipboard') +
+      stepCards +
+      '<button class="btn secondary" data-action="guide-step-add" data-gidx="' + gi + '">' + icon('plus') + ' Add Step</button>' +
+      '<div style="height:16px"></div>' +
+      '<button class="btn danger-ghost" data-action="guide-reset" data-gid="' + esc(g.id) + '">Reset this guide to the default steps</button>' +
+      '<input type="file" id="guide-upload-file" style="display:none">' +
+      '</div>';
   };
 
   /* ---------------- Catalog manager ---------------- */

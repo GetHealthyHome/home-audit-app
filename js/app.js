@@ -6,9 +6,10 @@
   var tabbar = document.getElementById('tabbar');
   var uiState = {
     catalogFilter: 'All Measures', mediaFilter: 'all', builderPick: null, historyQuery: '',
-    dashView: 'list', calMonth: null, calSelected: null, mediaEditing: null
+    dashView: 'list', calMonth: null, calSelected: null, mediaEditing: null, tplView: 'visual'
   };
   var iaqTimer = null;
+  var guideUploadPending = null;
 
   function route() {
     var h = location.hash || '#/dashboard';
@@ -57,7 +58,8 @@
         case 'new': html = ScreenNewEval(); break;
         case 'history': html = ScreenHistory(uiState.historyQuery); break;
         case 'settings': html = ScreenSettings(); break;
-        case 'template': html = Auth.isAdmin() ? ScreenTemplate() : ScreenAdminLocked(); break;
+        case 'template': html = Auth.isAdmin() ? ScreenTemplate(uiState.tplView) : ScreenAdminLocked(); break;
+        case 'guide': html = ScreenGuide(parts[1]); break;
         case 'admin':
           if (!Auth.isAdmin()) { html = ScreenAdminLocked(); break; }
           switch (parts[1]) {
@@ -69,6 +71,8 @@
             case 'pricing': html = ScreenAdminPricing(); break;
             case 'rule': html = ScreenAdminRule(parts[2]); break;
             case 'prompts': html = ScreenAdminPrompts(); break;
+            case 'guides': html = ScreenAdminGuides(); break;
+            case 'guide': html = ScreenAdminGuide(parts[2]); break;
             default: html = ScreenAdmin();
           }
           break;
@@ -206,6 +210,27 @@
       e.target.value = '';
       return;
     }
+    if (e.target.id === 'guide-upload-file') {
+      var gfile = e.target.files[0];
+      var pending = guideUploadPending;
+      e.target.value = '';
+      guideUploadPending = null;
+      if (!gfile || !pending) return;
+      UI.toast('Uploading…');
+      Backend.uploadAsset(gfile, 'guides').then(function (url) {
+        var guides = Admin.ensureGuides();
+        var g = guides[pending.gidx];
+        if (!g) return;
+        if (pending.kind === 'pdf') g.pdf = url;
+        else if (g.steps && g.steps[pending.idx]) g.steps[pending.idx].photo = url;
+        Store.save();
+        UI.toast(pending.kind === 'pdf' ? 'PDF attached to the guide.' : 'Photo added to the step.');
+        rerender();
+      }).catch(function (err) {
+        UI.toast('Upload failed: ' + err.message);
+      });
+      return;
+    }
     var bind = e.target.getAttribute && e.target.getAttribute('data-bind');
     if (!bind) return;
     if (e.target.tagName === 'SELECT') rerender();
@@ -221,6 +246,7 @@
 
     var actions = {
       'nav': function () { location.hash = el.getAttribute('data-route'); },
+      'hist-back': function () { history.back(); },
       'toast': function () { UI.toast(el.getAttribute('data-msg')); },
       'open-eval': function () {
         var id = el.getAttribute('data-id');
@@ -409,6 +435,41 @@
         var i = ev.proposalOmit.indexOf(mid);
         if (i >= 0) ev.proposalOmit.splice(i, 1); else ev.proposalOmit.push(mid);
         Store.save(); rerender();
+      },
+      'tpl-view': function () { uiState.tplView = el.getAttribute('data-view'); rerender(); },
+      /* ---- Diagnostics guide editor ---- */
+      'guide-step-add': function () {
+        var guides = Admin.ensureGuides();
+        var g = guides[parseInt(el.getAttribute('data-gidx'), 10)];
+        if (!g) return;
+        (g.steps = g.steps || []).push({ text: '', photo: '' });
+        Store.save(); rerender();
+      },
+      'guide-step-remove': function () {
+        var guides = Admin.ensureGuides();
+        var g = guides[parseInt(el.getAttribute('data-gidx'), 10)];
+        if (!g || !g.steps) return;
+        g.steps.splice(parseInt(el.getAttribute('data-idx'), 10), 1);
+        Store.save(); rerender();
+      },
+      'guide-reset': function () {
+        if (!confirm('Discard your edits to this guide and restore the default steps?')) return;
+        Admin.resetGuide(el.getAttribute('data-gid'));
+        UI.toast('Default guide restored.');
+        rerender();
+      },
+      'guide-upload': function () {
+        if (!Auth.signedIn()) { UI.toast('Sign in first — uploads go to cloud storage.'); return; }
+        var kind = el.getAttribute('data-kind');
+        guideUploadPending = {
+          gidx: parseInt(el.getAttribute('data-gidx'), 10),
+          idx: el.hasAttribute('data-idx') ? parseInt(el.getAttribute('data-idx'), 10) : null,
+          kind: kind
+        };
+        var inp = document.getElementById('guide-upload-file');
+        if (!inp) return;
+        inp.setAttribute('accept', kind === 'pdf' ? 'application/pdf,.pdf' : 'image/*');
+        inp.click();
       },
       'tpl-save': function () {
         Store.state.proposalTemplate = TemplateDraft.html || Proposal.DEFAULT_TEMPLATE;

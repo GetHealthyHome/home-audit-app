@@ -33,9 +33,23 @@ in the field.
   template** (Settings → Edit Proposal Template, or `#/template`): a
   mustache-style engine (`js/proposal.js`) substitutes `{{tokens}}` with live
   assessment data, photos and financials, with `{{#if}}`/`{{#each}}` sections.
-  On the proposal screen the assessor **checks/unchecks which recommended
-  improvements** appear in the document without touching the working plan.
-  Custom templates persist locally; one tap restores the default design.
+  The template editor has **two switchable views** — a **Visual view**
+  (default) that renders the template live against the open evaluation (or
+  built-in sample data when none is open), and a **Code view** with the raw
+  HTML and the token reference; unsaved code edits show in the visual
+  preview immediately. On the proposal screen the assessor
+  **checks/unchecks which recommended improvements** appear in the document
+  without touching the working plan. Custom templates persist locally; one
+  tap restores the default design.
+- **Diagnostics how-to guides** — every diagnostics section (Blower Door,
+  IAQ, Combustion Safety, Site) carries a tappable **? icon** (on the hub
+  row and in the test screen's header) that opens a **step-by-step field
+  procedure**: numbered instructions with optional reference photos, plus an
+  optional attached **PDF** (manufacturer manual / company SOP) that opens
+  from the guide. Guides ship with authored defaults and are fully
+  **admin-editable** (Admin Portal → Diagnostics Guides): rewrite steps, add
+  or remove them, and upload step photos or the PDF straight to cloud
+  storage from the editor.
 - **Shareable proposal deck** (`deck.html?t=<share-token>`) — a customer-facing,
   full-screen slide presentation (keyboard/swipe/dot navigation, Export PDF
   with one landscape page per slide) auto-populated from the synced audit:
@@ -62,7 +76,7 @@ in the field.
   base — conditioned on any audit field; shown together with the material
   build-up in the Builder, overridable per audit), and
   edit **audit prompts** (motivations, heat types, blower-door checklist
-  items, CAZ hard-stop wording). Each measure also carries **suggest-when
+  items, CAZ hard-stop wording) and the **diagnostics guides**. Each measure also carries **suggest-when
   conditions** on assessment data (sqft, dropdown selections, test
   readings); matching measures surface under "Suggested from this
   assessment" in the Catalog with the triggering reason, and the hub shows

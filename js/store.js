@@ -293,6 +293,12 @@
     materials: function () {
       return (state.admin && state.admin.materials) || DATA.MATERIALS;
     },
+    guides: function () {
+      return (state.admin && state.admin.guides) || DATA.TEST_GUIDES;
+    },
+    guide: function (id) {
+      return Store.guides().filter(function (g) { return g.id === id; })[0];
+    },
     material: function (id) {
       return Store.materials().filter(function (m) { return m.id === id; })[0];
     },

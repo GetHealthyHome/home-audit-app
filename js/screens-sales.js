@@ -392,35 +392,61 @@
   };
 
   /* ---------------- Proposal Template Editor ---------------- */
-  window.ScreenTemplate = function () {
+  window.ScreenTemplate = function (view) {
+    view = view === 'code' ? 'code' : 'visual';
     var custom = !!Store.state.proposalTemplate;
     if (TemplateDraft.html == null) TemplateDraft.html = Proposal.template();
 
-    var tokenRows = Proposal.TOKENS.map(function (t) {
-      return '<div class="tok-row"><code>' + esc(t[0]) + '</code><span>' + esc(t[1]) + '</span></div>';
-    }).join('');
-
     var active = Store.activeEval();
+    var body;
+
+    if (view === 'visual') {
+      var previewHtml, previewErr = null;
+      try {
+        previewHtml = Tpl.render(TemplateDraft.html || Proposal.DEFAULT_TEMPLATE,
+          active ? Proposal.context(active) : Proposal.sampleContext());
+      } catch (err) { previewErr = err.message || 'template error'; }
+
+      body =
+        '<p class="hint" style="margin-bottom:10px">' +
+        (active
+          ? 'Previewing with live data from <b>' + esc(active.customer.name || 'the open evaluation') + '</b>.'
+          : 'No evaluation is open — previewing with sample data.') +
+        ' Unsaved edits from the Code view show here too.</p>' +
+        (previewErr
+          ? '<div class="card"><p class="hint" style="color:var(--red)">The template has an error and cannot render: ' + esc(previewErr) + '. Switch to the Code view to fix it.</p></div>'
+          : '<div class="tpl-preview pdoc">' + previewHtml + '</div>');
+    } else {
+      var tokenRows = Proposal.TOKENS.map(function (t) {
+        return '<div class="tok-row"><code>' + esc(t[0]) + '</code><span>' + esc(t[1]) + '</span></div>';
+      }).join('');
+
+      body =
+        '<textarea class="tpl-editor" data-bind="tpl.html" spellcheck="false">' + esc(TemplateDraft.html) + '</textarea>' +
+        '<div class="card" style="margin-top:16px">' + UI.sectionHeading('Available Tokens', 'info') +
+        '<p class="hint">Sections: <code>{{#if x}}…{{/if}}</code> renders only when data exists; <code>{{#each list}}…{{/each}}</code> repeats per item. Style with the <code>pd-page</code>, <code>pd-table</code>, <code>pd-hero</code>, <code>pd-measure</code>, <code>pd-gallery</code> classes or your own inline CSS.</p>' +
+        '<div class="tok-list">' + tokenRows + '</div></div>';
+    }
 
     return UI.subbar('Proposal Template', '#/settings') +
       '<div class="screen">' +
       '<span class="eyebrow blue">' + icon('edit') + ' Document Designer</span>' +
       '<h1 class="screen-title">Proposal Template</h1>' +
-      '<p class="screen-sub">The proposal document is generated from this HTML. Edit the layout, wording and branding freely — <code>{{tokens}}</code> are replaced with live assessment data when the proposal is generated.</p>' +
-      '<div style="display:flex;gap:8px;margin-bottom:12px">' +
+      '<p class="screen-sub">The proposal document is generated from an HTML template. Design it in the Visual view; edit the layout, wording and <code>{{tokens}}</code> in the Code view.</p>' +
+      '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">' +
+      '<div class="segmented lite" style="flex:1">' +
+      '<button data-action="tpl-view" data-view="visual" class="' + (view === 'visual' ? 'on' : '') + '">Visual</button>' +
+      '<button data-action="tpl-view" data-view="code" class="' + (view === 'code' ? 'on' : '') + '">Code</button>' +
+      '</div>' +
       UI.pill(custom ? 'progress' : 'complete', custom ? 'Customized' : 'Default design') + '</div>' +
 
-      '<textarea class="tpl-editor" data-bind="tpl.html" spellcheck="false">' + esc(TemplateDraft.html) + '</textarea>' +
+      body +
 
       '<div class="btn-row" style="margin:12px 0">' +
       '<button class="btn primary" data-action="tpl-save">Save Template</button>' +
       '<button class="btn secondary" data-action="tpl-preview"' + (active ? '' : ' disabled') + '>Save &amp; Preview</button>' +
       '</div>' +
       '<button class="btn danger-ghost" data-action="tpl-reset"' + (custom ? '' : ' disabled') + '>Reset to default design</button>' +
-
-      '<div class="card" style="margin-top:16px">' + UI.sectionHeading('Available Tokens', 'info') +
-      '<p class="hint">Sections: <code>{{#if x}}…{{/if}}</code> renders only when data exists; <code>{{#each list}}…{{/each}}</code> repeats per item. Style with the <code>pd-page</code>, <code>pd-table</code>, <code>pd-hero</code>, <code>pd-measure</code>, <code>pd-gallery</code> classes or your own inline CSS.</p>' +
-      '<div class="tok-list">' + tokenRows + '</div></div>' +
       '</div>';
   };
   window.TemplateDraft = {};

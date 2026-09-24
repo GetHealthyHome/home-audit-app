@@ -238,5 +238,48 @@ window.DATA = {
     { id: 'mat-window-unit', name: 'Triple-Pane Window Unit (installed)', unit: 'each', cost: 850,
       qty: 'calc:windows' },
     { id: 'mat-trip', name: 'Trip / Setup Charge', unit: 'flat', cost: 150 }
+  ],
+
+  /* ---- Diagnostics how-to guides (admin-editable) ----
+     Opened from the help icon on each test screen. Steps can carry a photo
+     URL; a guide can also attach a PDF that opens in a new tab. */
+  TEST_GUIDES: [
+    { id: 'blower', name: 'Blower Door Test', icon: 'fan',
+      intro: 'The blower door depressurizes the house to -50 Pa and measures how much air leaks back in (CFM50). Set up carefully — a bad seal or an open damper ruins the number.',
+      steps: [
+        { text: 'Walk the house first: close every exterior door and window, open all interior doors, and turn off the HVAC system, water heater, and any other combustion appliance at the thermostat or service switch.', photo: '' },
+        { text: 'Close fireplace dampers and cover ash beds with a damp cloth or tape film over the opening — ash pulled through the firebox will blow into the room at -50 Pa.', photo: '' },
+        { text: 'Fit the adjustable frame and nylon panel into an exterior doorway, preferably one sheltered from wind. Tension the cams until the gasket seals on all four sides.', photo: '' },
+        { text: 'Mount the fan low in the panel with the exhaust facing outside. Attach the green pressure tap tube to the fan and run the red house-pressure tube through the panel grommet to the outside, away from the fan airflow.', photo: '' },
+        { text: 'Connect both tubes to the manometer, set it to PR/PR mode, and zero (baseline) it with the fan sealed. Note the baseline house pressure.', photo: '' },
+        { text: 'Remove fan rings as needed, start the fan slowly, and bring the house to -50 Pa. Let the reading stabilize for at least 15 seconds.', photo: '' },
+        { text: 'Record the CFM50 shown for the installed ring configuration. If the reading hunts more than ±3 Pa, shield the outside tube from wind and re-test.', photo: '' },
+        { text: 'While the house is depressurized, walk it with a smoke pencil or the back of your hand to locate leaks — attic hatch, top plates, rim joist, and plumbing penetrations first. Photograph what you find, then power down the fan gradually.', photo: '' }
+      ], pdf: '' },
+    { id: 'iaq', name: 'Indoor Air Quality Baseline', icon: 'air',
+      intro: 'The IAQ baseline captures what the family actually breathes on a normal day. The monitor needs to sample undisturbed air, not the plume from your own breath or the front door.',
+      steps: [
+        { text: 'Place the monitor in the main living area on a table 3–5 ft off the floor, at least 6 ft from exterior doors, windows, supply registers, and cooking appliances.', photo: '' },
+        { text: 'Keep the home in its normal state — do not open windows or run exhaust fans during the sample. Note anything unusual (candles, fresh paint, pets) in the audit record.', photo: '' },
+        { text: 'Power the monitor and let it warm up and settle. Stand back while it samples; CO₂ from a nearby conversation can add hundreds of ppm.', photo: '' },
+        { text: 'Start the in-app sample timer and wait for it to complete before reading values.', photo: '' },
+        { text: 'Enter every metric the monitor reports — particulates, chemicals/VOC, CO₂, CO, temperature, and relative humidity. CO₂ and VOC are required for a complete audit.', photo: '' }
+      ], pdf: '' },
+    { id: 'caz', name: 'Combustion Safety (CAZ)', icon: 'flame',
+      intro: 'The combustion appliance zone test proves the furnace and water heater still vent safely when the house is at worst-case depressurization. A failure here is a hard stop — air sealing a house that backdrafts is dangerous.',
+      steps: [
+        { text: 'Set up worst case: close exterior doors and windows, turn on every exhaust device (bath fans, range hood on high, dryer), and close interior doors that make the CAZ pressure most negative.', photo: '' },
+        { text: 'Measure CAZ depressurization with the manometer (reference outside). Record the worst-case reading against the appliance’s allowable limit.', photo: '' },
+        { text: 'Fire each appliance and check for spillage at the draft hood or barometric damper with a mirror or smoke pencil for the first 60 seconds. Spillage beyond one minute is a fail.', photo: '' },
+        { text: 'Once drafting is established, measure flue draft and take an undiluted flue-gas CO reading. CO above 100 ppm (as-measured) requires service before any envelope work.', photo: '' },
+        { text: 'Return the house to normal, re-light standing pilots, and record pass/fail for every test in the app. Any fail: tag the appliance, inform the customer, and stop envelope work until corrected.', photo: '' }
+      ], pdf: '' },
+    { id: 'site', name: 'Site & Home Profile', icon: 'home',
+      intro: 'Site parameters drive the whole audit — square footage feeds ASHRAE 62.2, pricing quantities, and the energy model, so measure rather than estimate.',
+      steps: [
+        { text: 'Record conditioned floor area from measurement or plans — exclude garages and unconditioned basements. This number feeds ventilation targets and per-square-foot pricing.', photo: '' },
+        { text: 'Count bedrooms as defined for ASHRAE 62.2 (rooms with a closet and egress), and record year built and stories.', photo: '' },
+        { text: 'Ask the customer what prompted the audit and note comfort complaints room by room — these steer which improvements you check in the catalog.', photo: '' }
+      ], pdf: '' }
   ]
 };
