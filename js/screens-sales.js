@@ -34,6 +34,17 @@
   }
 
   /* ---------------- Improvement Catalog ---------------- */
+  function measureCard(ev, m, reason) {
+    var added = ev.selections.indexOf(m.id) >= 0;
+    return '<div class="measure-card' + (reason ? ' suggested' : '') + '">' +
+      (reason ? '<div class="suggest-reason">' + icon('sparkle') + ' ' + reason + '</div>' : '') +
+      '<div class="mtop"><span class="mic">' + icon(m.icon) + '</span>' + impactPill(m.impact) + '</div>' +
+      '<h3>' + esc(m.name) + '</h3><p>' + esc(m.desc) + '</p>' +
+      '<div class="mfoot"><span class="roi">Est. ROI: <b style="color:var(--green)">' + m.roi + '%</b></span>' +
+      '<button class="addbtn ' + (added ? 'added' : '') + '" data-action="catalog-toggle" data-mid="' + m.id + '" aria-label="' + (added ? 'Remove from plan' : 'Add to plan') + '">' +
+      icon(added ? 'check' : 'plus') + '</button></div></div>';
+  }
+
   window.ScreenCatalog = function (ev, filterCat) {
     filterCat = filterCat || 'All Measures';
     var groups = {};
@@ -42,27 +53,32 @@
       (groups[m.cat] = groups[m.cat] || []).push(m);
     });
 
+    var suggestions = Store.suggestedMeasures(ev);
+    var suggestBlock = suggestions.length ?
+      UI.sectionHeading('Suggested from this assessment', 'sparkle',
+        '<span class="aux">' + suggestions.length + '</span>') +
+      '<p class="hint" style="margin:-4px 0 12px">Measures matched by the data captured in this audit. Tap + to add them to the plan.</p>' +
+      suggestions.map(function (s) {
+        var val = s.value !== '' && s.value != null && s.value !== true ? esc(String(s.value)) : '';
+        return measureCard(ev, s.measure,
+          'Because ' + esc(Admin.fieldLabel(s.cond.field)) + (val ? ' is <b>' + val + '</b>' : ' matches'));
+      }).join('') +
+      '<div style="height:10px"></div>' : '';
+
     var chips = '<div class="filter-chips">' + Store.catalogCats().map(function (c) {
       return '<button class="chip ' + (c === filterCat ? 'on' : '') + '" data-action="catalog-filter" data-cat="' + esc(c) + '">' + esc(c) + '</button>';
     }).join('') + '</div>';
 
     var body = Object.keys(groups).map(function (cat) {
       return '<h2 style="font:800 19px var(--font-display);color:var(--green);margin:22px 0 12px">' + esc(cat) + '</h2>' +
-        groups[cat].map(function (m) {
-          var added = ev.selections.indexOf(m.id) >= 0;
-          return '<div class="measure-card">' +
-            '<div class="mtop"><span class="mic">' + icon(m.icon) + '</span>' + impactPill(m.impact) + '</div>' +
-            '<h3>' + esc(m.name) + '</h3><p>' + esc(m.desc) + '</p>' +
-            '<div class="mfoot"><span class="roi">Est. ROI: <b style="color:var(--green)">' + m.roi + '%</b></span>' +
-            '<button class="addbtn ' + (added ? 'added' : '') + '" data-action="catalog-toggle" data-mid="' + m.id + '" aria-label="' + (added ? 'Remove from plan' : 'Add to plan') + '">' +
-            icon(added ? 'check' : 'plus') + '</button></div></div>';
-        }).join('');
+        groups[cat].map(function (m) { return measureCard(ev, m); }).join('');
     }).join('');
 
     return UI.subbar('Improvement Catalog', '#/eval/' + ev.id + '/hub') +
       '<div class="screen">' + flowTabs(ev, 'catalog') +
       '<h1 class="screen-title">Improvement Catalog</h1>' +
       '<p class="screen-sub">Curated library of standard energy-saving measures. Select high-performance retrofits to add to your clinical home evaluation.</p>' +
+      suggestBlock +
       chips + body +
       (ev.selections.length ?
         '<div class="review-dock"><button class="btn primary" data-action="nav" data-route="#/eval/' + ev.id + '/builder">' +

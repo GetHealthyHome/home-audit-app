@@ -223,7 +223,14 @@
       (ev.energyModel && ev.energyModel.climate ? UI.pill('complete', 'Modeled') : UI.pill('progress', 'Optional')) +
       '<span style="display:block;font:600 11px var(--font-body);color:var(--faint);margin-top:4px">Climate-normalized cost model — run on request</span></span>' +
       '<span class="chev">' + icon('chevR') + '</span></button>' +
-      moduleRow('#/eval/' + ev.id + '/catalog', 'bolt', 'Improvement Recommendations', ms.recsUnlocked ? (ev.selections.length ? 'progress' : 'pending') : 'locked') +
+      moduleRow('#/eval/' + ev.id + '/catalog', 'bolt', 'Improvement Recommendations',
+        ms.recsUnlocked ? (ev.selections.length ? 'progress' : 'pending') : 'locked',
+        (function () {
+          if (!ms.recsUnlocked) return '';
+          var n = Store.suggestedMeasures(ev).length;
+          return n ? '<span style="display:block;font:600 11px var(--font-body);color:var(--magenta);margin-top:4px">' +
+            n + ' measure' + (n > 1 ? 's' : '') + ' suggested from assessment data</span>' : '';
+        })()) +
       moduleRow('#/eval/' + ev.id + '/media', 'photo', 'Media Review & Tagging', ev.photos.length ? 'progress' : 'pending',
         '<span style="display:block;font:600 11px var(--font-body);color:var(--faint);margin-top:4px">' + ev.photos.length + ' photos captured</span>') +
       '</div>';

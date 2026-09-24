@@ -138,7 +138,8 @@
             '<span class="mic">' + icon(x.m.icon || 'bolt') + '</span>' +
             '<span class="mbody"><b>' + esc(x.m.name || 'Unnamed measure') + '</b>' +
             '<span style="display:block;font:600 11px var(--font-body);color:var(--faint);margin-top:4px">' +
-            UI.money(parseFloat(x.m.cost) || 0) + ' · saves ' + UI.money(parseFloat(x.m.savings) || 0) + '/yr · ' + esc(x.m.impact || '—') + '</span></span>' +
+            UI.money(parseFloat(x.m.cost) || 0) + ' · saves ' + UI.money(parseFloat(x.m.savings) || 0) + '/yr · ' + esc(x.m.impact || '—') +
+            ((x.m.suggest || []).length ? ' · ' + x.m.suggest.length + ' auto-suggest rule' + (x.m.suggest.length > 1 ? 's' : '') : '') + '</span></span>' +
             '<span class="chev">' + icon('chevR') + '</span></button>';
         }).join('');
     }).join('');
@@ -191,6 +192,27 @@
       UI.field({ label: 'Description', bind: b + '.desc', textarea: true, value: m.desc, placeholder: 'What the improvement is and where it applies…' }) +
       UI.field({ label: 'Building Science (use *asterisks* to emphasize)', bind: b + '.science', textarea: true, value: m.science, placeholder: 'Why it works — shows in the Builder and proposal…' }) +
       UI.field({ label: 'Benefits (one per line)', bind: b + '.benefits', textarea: true, value: benefitsVal, placeholder: 'Reduces HVAC load\nPrevents ice damming' }) +
+      '</div>' +
+
+      '<div class="card">' + UI.sectionHeading('Suggest When', 'sparkle') +
+      '<p class="hint">Conditions on data captured during the assessment — square footage, dropdown selections, test readings. When <b>any</b> condition matches an audit, this measure is surfaced under “Suggested from this assessment” in the Catalog with the reason shown.</p>' +
+      (m.suggest || []).map(function (c, ci) {
+        var cb = b + '.suggest.' + ci;
+        var fieldOpts = Admin.FIELDS.map(function (f) {
+          return '<option value="' + esc(f.path) + '"' + (c.field === f.path ? ' selected' : '') + '>' + esc(f.label) + '</option>';
+        }).join('') + (Admin.FIELDS.some(function (f) { return f.path === c.field; }) ? '' :
+          '<option value="' + esc(c.field) + '" selected>Custom: ' + esc(c.field) + '</option>');
+        var opOpts = Admin.OPS.map(function (o) {
+          return '<option value="' + o.id + '"' + (c.op === o.id ? ' selected' : '') + '>' + esc(o.label) + '</option>';
+        }).join('');
+        return '<div class="tag-editor" style="margin:8px 0">' +
+          '<div class="field"><label>Audit Field</label><select class="input" data-bind="' + cb + '.field">' + fieldOpts + '</select></div>' +
+          '<div class="field"><label>Condition</label><select class="input" data-bind="' + cb + '.op">' + opOpts + '</select></div>' +
+          (c.op === 'set' ? '' : UI.field({ label: 'Value', bind: cb + '.value', value: c.value, placeholder: 'e.g. 2000 or Missing' })) +
+          '<button class="btn small danger-ghost" data-action="admin-suggest-remove" data-mid="' + esc(m.id) + '" data-i="' + ci + '">Remove condition</button>' +
+          '</div>';
+      }).join('') +
+      '<button class="btn small secondary" data-action="admin-suggest-add" data-mid="' + esc(m.id) + '">' + icon('plus') + ' Add suggestion condition</button>' +
       '</div>' +
 
       '<div class="cta-dock">' +

@@ -57,8 +57,13 @@ in the field.
   any audit field: square footage, dropdown selections, test readings; shown
   as an auto-pricing breakdown in the Builder, overridable per audit), and
   edit **audit prompts** (motivations, heat types, blower-door checklist
-  items, CAZ hard-stop wording). Config lives in local state and can be
-  **exported/imported as JSON** to keep crew devices in sync.
+  items, CAZ hard-stop wording). Each measure also carries **suggest-when
+  conditions** on assessment data (sqft, dropdown selections, test
+  readings); matching measures surface under "Suggested from this
+  assessment" in the Catalog with the triggering reason, and the hub shows
+  the count. Config lives in local state and can be **exported/imported as
+  JSON** to keep crew devices in sync. On desktop, signed-in admins get an
+  **Admin entry in the left navigation rail**.
 - **Calendar view** on the dashboard (month grid with appointment dots)
 - **Media review & tagging** (required-tag tracking), **audit history**,
   read-only **Assessment Record**, per-audit **JSON export**
